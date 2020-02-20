@@ -289,35 +289,61 @@ ompl::control::Motions ompl::control::SpaceInformation::propagateWhileMotionsVal
                                                                                    Control const *control,
                                                                                    int steps) const
 {
-    Motions motions;
+    // fill motions with all the parents of motion
+    Motions all_motions;
+    Motions new_motions;
+    auto *tmp_motion = new Motion(this);
+    tmp_motion->parent = motion->parent;
+    tmp_motion->control = motion->control;
+    tmp_motion->state = motion->state;
+    while (true)
+    {
+        all_motions.emplace_back(tmp_motion);
+
+        // we want to insert the motion whose parent is null, because its state will be the first state
+        if (!tmp_motion->parent)
+        {
+            break;
+        }
+
+        tmp_motion = tmp_motion->parent;
+    }
+
     for (auto st{0}; st < steps; ++st)
     {
         auto const current_state = motion->state;
         // LEAK??
+        // since these motions will be inserted into nn_, and nn_ cleans up all the things inside of it,
+        // this might be fine?
         auto *new_motion = new Motion(this);
         new_motion->parent = motion;
         statePropagator_->propagate(current_state, control, stepSize_, new_motion->state);
         copyControl(new_motion->control, control);
 
+        // If the new state is invalid, but motions is valid (so far) then return the motions so far
         if (!isValid(new_motion->state))
         {
             freeState(new_motion->state);
             freeControl(new_motion->control);
-           break;
+            break;
         }
 
-        motions.emplace_back(new_motion);
+        all_motions.emplace_back(new_motion);
+        new_motions.emplace_back(new_motion);
 
-        if (!motionsValid(motions))
+        // if the motions is invalid, the previous motions was valid so return those
+        if (!motionsValid(all_motions))
         {
-            freeState(motions.back()->state);
-            freeControl(motions.back()->control);
-            motions.pop_back();
+            freeState(all_motions.back()->state);
+            freeControl(all_motions.back()->control);
+            delete new_motion;
+            all_motions.pop_back();
+            new_motions.pop_back();
             break;
         }
         motion = new_motion;
     }
-    return motions;
+    return new_motions;
 }
 
 unsigned int ompl::control::SpaceInformation::propagateWhileValid(const base::State *state, const Control *control,
