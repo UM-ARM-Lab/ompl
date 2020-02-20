@@ -33,6 +33,8 @@
 *********************************************************************/
 
 /* Author: Ioan Sucan */
+#include <iostream>
+#include <numeric>
 
 #include <ompl/control/SpaceInformation.h>
 #include <ompl/base/goals/GoalState.h>
@@ -41,7 +43,6 @@
 #include <ompl/control/planners/rrt/RRT.h>
 #include <ompl/control/planners/cem/CEM.h>
 #include <ompl/control/planners/syclop/GridDecomposition.h>
-#include <iostream>
 #include <ompl/base/objectives/PathLengthOptimizationObjective.h>
 #include "matplotlibcpp.h"
 
@@ -52,6 +53,22 @@ namespace plt = matplotlibcpp;
 bool isStateValid(const oc::SpaceInformation *si, const ob::State *state)
 {
     return si->satisfiesBounds(state);
+}
+
+bool motionsValid(const oc::SpaceInformation *si, oc::Motions const motions)
+{
+    auto const length = std::accumulate(motions.cbegin(),
+                                        motions.cend(),
+                                        0.0,
+                                        [&](double acc, oc::Motion *motion)
+                                        {
+                                            if (motion->parent == nullptr)
+                                            {
+                                                return acc;
+                                            }
+                                            return acc + si->distance(motion->state, motion->parent->state);
+                                        });
+    return length < 2.0;
 }
 
 
@@ -97,6 +114,9 @@ void plan()
     // set state validity checking for this space
     si->setStateValidityChecker([&si](const ob::State *state) { return isStateValid(si.get(), state); });
 
+    // set state validity checking for this space
+    si->setMotionsValidityChecker([&si](const oc::Motions motions) { return motionsValid(si.get(), motions); });
+
     // set the state propagation routine
     si->setStatePropagator(propagate);
 
@@ -105,7 +125,7 @@ void plan()
 
     // create a start state
     ob::ScopedState<ob::SE2StateSpace> start(space);
-    start->setX(-0.5);
+    start->setX(0.0);
     start->setY(0.0);
     start->setYaw(0.0);
 
@@ -138,50 +158,57 @@ void plan()
     planner->setup();
 
     // print the settings for this space
-    si->printSettings(std::cout);
+    // si->printSettings(std::cout);
 
     // print the problem settings
-    pdef->print(std::cout);
+    // pdef->print(std::cout);
 
     // attempt to solve the problem within ten seconds of planning time
     ob::PlannerStatus solved = planner->ob::Planner::solve(10000.0);
 
     std::vector<double> xs;
     std::vector<double> ys;
+    std::cout << solved.asString() << '\n';
     if (solved)
     {
         // get the goal representation from the problem definition (not the same as the goal state)
         // and inquire about the found path
         auto path = pdef->getSolutionPath()->as<ompl::control::PathControl>();
-        std::cout << "Found solution:" << std::endl;
 
-        // print the path to screen
-        path->print(std::cout);
-
-        for (auto const abstract_state : path->getStates())
+        auto length = 0.0;
+        for (auto i{0u}; i < path->getStateCount(); ++i)
         {
+            auto const abstract_state = path->getState(i);
             ompl::base::ScopedState<ompl::base::SE2StateSpace> state(space);
             state = abstract_state;
             xs.push_back(state->getX());
             ys.push_back(state->getY());
+
+            if (i + 1 < path->getStateCount())
+            {
+                auto const next_abstract_state = path->getState(i + 1);
+                length += space->distance(abstract_state, next_abstract_state);
+            }
         }
 
-        std::cout << "with length: " << pdef->getSolutionPath()->length() << '\n';
+        std::cout << length << '\n';
+
+        plt::plot(xs, ys);
+        plt::xlim(-10, 10);
+        plt::ylim(-10, 10);
+        plt::axis("equal");
+        plt::show();
     } else
     {
         std::cout << "No solution found" << std::endl;
     }
 
-    plt::plot(xs, ys);
-    plt::xlim(-10, 10);
-    plt::ylim(-10, 10);
-    plt::axis("equal");
-    plt::show();
 }
 
 int main(int /*argc*/, char ** /*argv*/)
 {
     ompl::msg::setLogLevel(ompl::msg::LOG_ERROR);
+//    ompl::RNG::setSeed(0);
 
     plan();
 
