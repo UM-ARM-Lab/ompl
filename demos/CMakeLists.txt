@@ -1,6 +1,8 @@
 option(OMPL_BUILD_DEMOS "Build OMPL demos" ON)
 add_feature_info(OMPL_BUILD_DEMOS "${OMPL_BUILD_DEMOS}" "Whether to build the OMPL demo programs.")
 
+find_package(Python3 COMPONENTS Development)
+
 if (OMPL_BUILD_DEMOS)
     file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/tests/resources" TEST_RESOURCES_DIR)
     string(REPLACE "\\" "\\\\" TEST_RESOURCES_DIR "${TEST_RESOURCES_DIR}")
@@ -17,7 +19,11 @@ if (OMPL_BUILD_DEMOS)
 
     add_ompl_demo(demo_RigidBodyPlanning RigidBodyPlanning.cpp)
     add_ompl_demo(demo_RigidBodyPlanningWithIK RigidBodyPlanningWithIK.cpp)
+
     add_ompl_demo(demo_RigidBodyPlanningWithControls RigidBodyPlanningWithControls.cpp)
+    target_include_directories(demo_RigidBodyPlanningWithControls PUBLIC ${Python3_INCLUDE_DIRS})
+    target_link_libraries(demo_RigidBodyPlanningWithControls ${Python3_LIBRARIES})
+
     add_ompl_demo(demo_RigidBodyPlanningWithIntegrationAndControls RigidBodyPlanningWithIntegrationAndControls.cpp)
     add_ompl_demo(demo_RigidBodyPlanningWithODESolverAndControls RigidBodyPlanningWithODESolverAndControls.cpp)
     add_ompl_demo(demo_StateSampling StateSampling.cpp)

@@ -37,6 +37,7 @@
 #include "ompl/control/SpaceInformation.h"
 #include "ompl/control/SimpleDirectedControlSampler.h"
 #include "ompl/control/SteeredControlSampler.h"
+#include "ompl/control/Motions.h"
 #include "ompl/util/Exception.h"
 #include <cassert>
 #include <utility>
@@ -66,6 +67,11 @@ void ompl::control::SpaceInformation::setup()
 {
     base::SpaceInformation::setup();
     declareParams(); // calling base::SpaceInformation::setup() clears the params
+    if (!motionsValidityChecker_)
+    {
+        motionsValidityChecker_ = std::make_shared<AllValidMotionsValidityChecker>(this);
+    }
+
     if (!statePropagator_)
         throw Exception("State propagator not defined");
     if (minSteps_ > maxSteps_)
@@ -118,7 +124,7 @@ void ompl::control::SpaceInformation::setStatePropagator(const StatePropagatorFn
 {
     class FnStatePropagator : public StatePropagator
     {
-    public:
+        public:
         FnStatePropagator(SpaceInformation *si, StatePropagatorFn fn) : StatePropagator(si), fn_(std::move(fn))
         {
         }
@@ -129,7 +135,7 @@ void ompl::control::SpaceInformation::setStatePropagator(const StatePropagatorFn
             fn_(state, control, duration, result);
         }
 
-    protected:
+        protected:
         StatePropagatorFn fn_;
     };
 
@@ -153,8 +159,7 @@ void ompl::control::SpaceInformation::propagate(const base::State *state, const 
     {
         if (result != state)
             copyState(result, state);
-    }
-    else
+    } else
     {
         double signedStepSize = steps > 0 ? stepSize_ : -stepSize_;
         steps = abs(steps);
@@ -231,12 +236,11 @@ void ompl::control::SpaceInformation::propagate(const base::State *state, const 
         result.resize(steps);
         for (auto &i : result)
             i = allocState();
-    }
-    else
+    } else
     {
         if (result.empty())
             return;
-        steps = std::min(steps, (int)result.size());
+        steps = std::min(steps, (int) result.size());
     }
 
     int st = 0;
@@ -254,6 +258,68 @@ void ompl::control::SpaceInformation::propagate(const base::State *state, const 
     }
 }
 
+void ompl::control::SpaceInformation::setMotionsValidityChecker(const MotionsValidityCheckerFn &mvc)
+{
+    class FnMotionsValidityChecker : public MotionsValidityChecker
+    {
+        public:
+        FnMotionsValidityChecker(SpaceInformation *si, MotionsValidityCheckerFn fn)
+                : MotionsValidityChecker(si), fn_(std::move(fn))
+        {
+        }
+
+        bool isValid(const Motions motions) const override
+        {
+            return fn_(motions);
+        }
+
+        protected:
+        MotionsValidityCheckerFn fn_;
+    };
+
+    if (!mvc)
+        throw Exception("Invalid function definition for motions validity checking");
+
+    auto ptr = std::make_shared<FnMotionsValidityChecker>(this, mvc);
+    setMotionsValidityChecker(ptr);
+}
+
+
+ompl::control::Motions ompl::control::SpaceInformation::propagateWhileMotionsValid(Motion *motion,
+                                                                                   Control const *control,
+                                                                                   int steps) const
+{
+    Motions motions;
+    for (auto st{0}; st < steps; ++st)
+    {
+        auto const current_state = motion->state;
+        // LEAK??
+        auto *new_motion = new Motion(this);
+        new_motion->parent = motion;
+        statePropagator_->propagate(current_state, control, stepSize_, new_motion->state);
+        copyControl(new_motion->control, control);
+
+        if (!isValid(new_motion->state))
+        {
+            freeState(new_motion->state);
+            freeControl(new_motion->control);
+           break;
+        }
+
+        motions.emplace_back(new_motion);
+
+        if (!motionsValid(motions))
+        {
+            freeState(motions.back()->state);
+            freeControl(motions.back()->control);
+            motions.pop_back();
+            break;
+        }
+        motion = new_motion;
+    }
+    return motions;
+}
+
 unsigned int ompl::control::SpaceInformation::propagateWhileValid(const base::State *state, const Control *control,
                                                                   int steps, std::vector<base::State *> &result,
                                                                   bool alloc) const
@@ -267,7 +333,7 @@ unsigned int ompl::control::SpaceInformation::propagateWhileValid(const base::St
     {
         if (result.empty())
             return 0;
-        steps = std::min(steps, (int)result.size());
+        steps = std::min(steps, (int) result.size());
     }
 
     int st = 0;
@@ -298,8 +364,7 @@ unsigned int ompl::control::SpaceInformation::propagateWhileValid(const base::St
                 }
                 ++st;
             }
-        }
-        else
+        } else
         {
             if (alloc)
             {

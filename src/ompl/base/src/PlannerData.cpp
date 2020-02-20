@@ -104,7 +104,7 @@ void ompl::base::PlannerData::decoupleFromPlanner()
 unsigned int ompl::base::PlannerData::getEdges(unsigned int v, std::vector<unsigned int> &edgeList) const
 {
     std::pair<Graph::AdjIterator, Graph::AdjIterator> iterators =
-        boost::adjacent_vertices(boost::vertex(v, *graph_), *graph_);
+            boost::adjacent_vertices(boost::vertex(v, *graph_), *graph_);
 
     edgeList.clear();
     boost::property_map<Graph::Type, boost::vertex_index_t>::type vertices = get(boost::vertex_index, *graph_);
@@ -401,7 +401,7 @@ unsigned int ompl::base::PlannerData::addVertex(const PlannerDataVertex &st)
         ompl::base::PlannerDataVertex *clone = st.clone();
         Graph::Vertex v = boost::add_vertex(clone, *graph_);
         boost::property_map<Graph::Type, boost::vertex_index_t>::type vertexIndexMap =
-            get(boost::vertex_index, *graph_);
+                get(boost::vertex_index, *graph_);
 
         // Insert this entry into the stateIndexMap_ for fast lookup
         stateIndexMap_[clone->getState()] = numVertices() - 1;
@@ -488,13 +488,13 @@ bool ompl::base::PlannerData::removeVertex(unsigned int vIndex)
 
     // Freeing memory associated with outgoing edges of this vertex
     std::pair<Graph::OEIterator, Graph::OEIterator> oiterators =
-        boost::out_edges(boost::vertex(vIndex, *graph_), *graph_);
+            boost::out_edges(boost::vertex(vIndex, *graph_), *graph_);
     for (Graph::OEIterator iter = oiterators.first; iter != oiterators.second; ++iter)
         delete edgePropertyMap[*iter];
 
     // Freeing memory associated with incoming edges of this vertex
     std::pair<Graph::IEIterator, Graph::IEIterator> initerators =
-        boost::in_edges(boost::vertex(vIndex, *graph_), *graph_);
+            boost::in_edges(boost::vertex(vIndex, *graph_), *graph_);
     for (Graph::IEIterator iter = initerators.first; iter != initerators.second; ++iter)
         delete edgePropertyMap[*iter];
 
@@ -648,16 +648,16 @@ void ompl::base::PlannerData::extractMinimumSpanningTree(unsigned int v, const b
     // into boost we can use the far more direct
     // boost::prim_minimum_spanning_tree().
     boost::dijkstra_shortest_paths(*graph_, v, boost::predecessor_map(&pred[0])
-                                                   .distance_compare([&opt](Cost c1, Cost c2)
-                                                                     {
-                                                                         return opt.isCostBetterThan(c1, c2);
-                                                                     })
-                                                   .distance_combine([](Cost, Cost c)
-                                                                     {
-                                                                         return c;
-                                                                     })
-                                                   .distance_inf(opt.infiniteCost())
-                                                   .distance_zero(opt.identityCost()));
+            .distance_compare([&opt](Cost c1, Cost c2)
+                              {
+                                  return opt.isCostBetterThan(c1, c2);
+                              })
+            .distance_combine([](Cost, Cost c)
+                              {
+                                  return c;
+                              })
+            .distance_inf(opt.infiniteCost())
+            .distance_zero(opt.identityCost()));
 
     // Adding vertices to MST
     for (std::size_t i = 0; i < pred.size(); ++i)
@@ -750,7 +750,7 @@ ompl::base::PlannerData::Graph &ompl::base::PlannerData::toBoostGraph()
 const ompl::base::PlannerData::Graph &ompl::base::PlannerData::toBoostGraph() const
 {
     const auto *boostgraph =
-        reinterpret_cast<const ompl::base::PlannerData::Graph *>(graphRaw_);
+            reinterpret_cast<const ompl::base::PlannerData::Graph *>(graphRaw_);
     return *boostgraph;
 }
 
@@ -799,7 +799,8 @@ void ompl::base::PlannerData::printPLY(std::ostream &out, const bool asIs) const
     std::size_t vcount = 0;
     std::size_t fcount = 0;
 
-    auto stateOutput = [&](const ompl::base::State *state) {
+    auto stateOutput = [&](const ompl::base::State *state)
+    {
         space->copyToReals(reals, state);
         std::copy(reals.begin(), reals.end(), std::ostream_iterator<double>(v, " "));
         v << std::endl;
@@ -808,29 +809,29 @@ void ompl::base::PlannerData::printPLY(std::ostream &out, const bool asIs) const
     const Graph &graph = toBoostGraph();
 
     BGL_FORALL_EDGES(edge, graph, PlannerData::Graph)
-    {
-        std::vector<ompl::base::State *> stateList;
-        const State *source = boost::get(vertex_type, graph, boost::source(edge, graph))->getState();
-        const State *target = boost::get(vertex_type, graph, boost::target(edge, graph))->getState();
-
-        unsigned int n = 0;
-        if (!asIs)
-            n = si_->getStateSpace()->validSegmentCount(source, target);
-        si_->getMotionStates(source, target, stateList, n, true, true);
-
-        stateOutput(stateList[0]);
-        vcount++;
-        for (std::size_t i = 1; i < stateList.size(); i++)
         {
-            stateOutput(stateList[i]);
-            stateOutput(stateList[i - 1]);
-            vcount += 2;
-            f << 3 << " " << vcount - 3 << " " << vcount - 2 << " " << vcount - 1 << "\n";
-            fcount++;
-            si_->freeState(stateList[i - 1]);
+            std::vector<ompl::base::State *> stateList;
+            const State *source = boost::get(vertex_type, graph, boost::source(edge, graph))->getState();
+            const State *target = boost::get(vertex_type, graph, boost::target(edge, graph))->getState();
+
+            unsigned int n = 0;
+            if (!asIs)
+                n = si_->getStateSpace()->validSegmentCount(source, target);
+            si_->getMotionStates(source, target, stateList, n, true, true);
+
+            stateOutput(stateList[0]);
+            vcount++;
+            for (std::size_t i = 1; i < stateList.size(); i++)
+            {
+                stateOutput(stateList[i]);
+                stateOutput(stateList[i - 1]);
+                vcount += 2;
+                f << 3 << " " << vcount - 3 << " " << vcount - 2 << " " << vcount - 1 << "\n";
+                fcount++;
+                si_->freeState(stateList[i - 1]);
+            }
+            si_->freeState(stateList.back());
         }
-        si_->freeState(stateList.back());
-    }
 
     out << "ply\n";
     out << "format ascii 1.0\n";
@@ -847,4 +848,32 @@ void ompl::base::PlannerData::printPLY(std::ostream &out, const bool asIs) const
     out << "property list uint uint vertex_index\n";
     out << "end_header\n";
     out << v.str() << f.str();
+}
+
+
+void ompl::base::PlannerData::addSample(const ompl::base::PlannerDataSample &sample)
+{
+    samples_data_.push_back(sample);
+}
+
+std::vector<ompl::base::PlannerDataSample> ompl::base::PlannerData::getSamples()
+{
+    return samples_data_;
+}
+
+ompl::base::PlannerDataSample::PlannerDataSample(State *sampled_state, State *nearest_neighbor) :
+        sampled_state_(sampled_state),
+        nearest_neighbor_(nearest_neighbor)
+{
+
+}
+
+ompl::base::State const *ompl::base::PlannerDataSample::getSampledState() const
+{
+  return sampled_state_;
+}
+
+ompl::base::State const *ompl::base::PlannerDataSample::getNeighbor() const
+{
+  return nearest_neighbor_;
 }
