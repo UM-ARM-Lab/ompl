@@ -155,6 +155,20 @@ namespace ompl
             }
         };
 
+        class PlannerDataSample
+        {
+        public:
+            PlannerDataSample(State *sampled_state, State *nearest_neighbor);
+
+            State const *getSampledState() const;
+
+            State const *getNeighbor() const;
+
+        protected:
+            State *sampled_state_;
+            State *nearest_neighbor_;
+        };
+
         /// @cond IGNORE
         OMPL_CLASS_FORWARD(StateStorage);
         OMPL_CLASS_FORWARD(PlannerData);
@@ -352,6 +366,13 @@ namespace ompl
             void computeEdgeWeights();
 
             /// \}
+            /// \name Samples
+            /// \{
+            void addSample(const PlannerDataSample &sample);
+
+            std::vector<PlannerDataSample> getSamples();
+
+            /// \}
             /// \name Output methods
             /// \{
 
@@ -423,6 +444,8 @@ namespace ompl
             /// These states are freed by PlannerData in the destructor.
             std::set<State *> decoupledStates_;
 
+            /// \brief sampled configurations and their nearest neighbors
+            std::vector<PlannerDataSample> samples_data_;
         private:
             void freeMemory();
 

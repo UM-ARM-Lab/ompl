@@ -137,31 +137,28 @@ ompl::base::PlannerStatus ompl::control::RRT::solve(const base::PlannerTerminati
         /* find closest state in the tree */
         Motion *nmotion = nn_->nearest(rmotion);
 
+        auto *saved_rstate = siC_->allocState();
+        siC_->copyState(saved_rstate, rstate);
+        auto *saved_nstate = siC_->allocState();
+        siC_->copyState(saved_nstate, nmotion->state);
+        ompl::base::PlannerDataSample sample_data(saved_rstate, saved_nstate);
+        samples_.push_back(sample_data);
+
         /* sample a random control that attempts to go towards the random state, and also sample a control duration */
-        unsigned int cd = controlSampler_->sampleTo(rctrl, nmotion->control, nmotion->state, rmotion->state);
+        auto const steps = controlSampler_->sampleTo(rctrl, nmotion->control, nmotion->state, rmotion->state);
 
         if (addIntermediateStates_)
         {
-            // this code is contributed by Jennifer Barry
-            std::vector<base::State *> pstates;
-            cd = siC_->propagateWhileValid(nmotion->state, rctrl, cd, pstates, true);
+            // what is parent here?
+            // nmotion->state is where we want to extend from
+            auto const motions = siC_->propagateWhileMotionsValid(nmotion, rctrl, steps);
 
-            if (cd >= siC_->getMinControlDuration())
+            if (steps >= siC_->getMinControlDuration())
             {
-                Motion *lastmotion = nmotion;
                 bool solved = false;
-                size_t p = 0;
-                for (; p < pstates.size(); ++p)
+                size_t m = 0;
+                for (auto motion : motions)
                 {
-                    /* create a motion */
-                    auto *motion = new Motion();
-                    motion->state = pstates[p];
-                    // we need multiple copies of rctrl
-                    motion->control = siC_->allocControl();
-                    siC_->copyControl(motion->control, rctrl);
-                    motion->steps = 1;
-                    motion->parent = lastmotion;
-                    lastmotion = motion;
                     nn_->add(motion);
                     double dist = 0.0;
                     solved = goal->isSatisfied(motion->state, &dist);
@@ -176,42 +173,27 @@ ompl::base::PlannerStatus ompl::control::RRT::solve(const base::PlannerTerminati
                         approxdif = dist;
                         approxsol = motion;
                     }
+                    m++;
                 }
 
                 // free any states after we hit the goal
-                while (++p < pstates.size())
-                    si_->freeState(pstates[p]);
-                if (solved)
-                    break;
-            }
-            else
-                for (auto &pstate : pstates)
-                    si_->freeState(pstate);
-        }
-        else
-        {
-            if (cd >= siC_->getMinControlDuration())
-            {
-                /* create a motion */
-                auto *motion = new Motion(siC_);
-                si_->copyState(motion->state, rmotion->state);
-                siC_->copyControl(motion->control, rctrl);
-                motion->steps = cd;
-                motion->parent = nmotion;
-
-                nn_->add(motion);
-                double dist = 0.0;
-                bool solv = goal->isSatisfied(motion->state, &dist);
-                if (solv)
+                // NOTE: this might leak one state?
+                while (++m < motions.size())
                 {
-                    approxdif = dist;
-                    solution = motion;
+                    si_->freeState(motions[m]->state);
+                }
+                if (solved)
+                {
                     break;
                 }
-                if (dist < approxdif)
+            }
+            // FIXME: is this right?
+            else
+            {
+                for (auto &motion : motions)
                 {
-                    approxdif = dist;
-                    approxsol = motion;
+
+                    si_->freeState(motion->state);
                 }
             }
         }
@@ -285,5 +267,10 @@ void ompl::control::RRT::getPlannerData(base::PlannerData &data) const
         }
         else
             data.addStartVertex(base::PlannerDataVertex(m->state));
+    }
+
+    for (auto sample_data : samples_)
+    {
+        data.addSample(sample_data);
     }
 }

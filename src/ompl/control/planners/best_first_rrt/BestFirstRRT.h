@@ -34,22 +34,22 @@
 
 /* Author: Ioan Sucan */
 
-#ifndef OMPL_CONTROL_PLANNERS_RRT_RRT_
-#define OMPL_CONTROL_PLANNERS_RRT_RRT_
+#ifndef OMPL_CONTROL_PLANNERS_BestFirstRRT_BestFirstRRT_
+#define OMPL_CONTROL_PLANNERS_BestFirstRRT_BestFirstRRT_
 
 #include "ompl/control/planners/PlannerIncludes.h"
 #include "ompl/datastructures/NearestNeighbors.h"
-#include "ompl/control/Motions.h"
+#include "ompl/base/objectives/PathLengthOptimizationObjective.h"
 
 namespace ompl
 {
     namespace control
     {
         /**
-           @anchor cRRT
+           @anchor cBestFirstRRT
            @par Short description
-           RRT is a tree-based motion planner that uses the following
-           idea: RRT samples a random state @b qr in the state space,
+           BestFirstRRT is a tree-based motion planner that uses the following
+           idea: BestFirstRRT samples a random state @b qr in the state space,
            then finds the state @b qc among the previously seen states
            that is closest to @b qr and expands from @b qc towards @b
            qr, until a state @b qm is reached. @b qm is then added to
@@ -63,13 +63,13 @@ namespace ompl
         */
 
         /** \brief Rapidly-exploring Random Tree */
-        class RRT : public base::Planner
+        class BestFirstRRT : public base::Planner
         {
-        public:
+            public:
             /** \brief Constructor */
-            RRT(const SpaceInformationPtr &si);
+            BestFirstRRT(const SpaceInformationPtr &si);
 
-            ~RRT() override;
+            ~BestFirstRRT() override;
 
             /** \brief Continue solving for some amount of time. Return true if solution was found. */
             base::PlannerStatus solve(const base::PlannerTerminationCondition &ptc) override;
@@ -111,10 +111,24 @@ namespace ompl
                 addIntermediateStates_ = addIntermediateStates;
             }
 
+            /** \brief Specify whether the intermediate states generated along motions are to be added to the tree
+             * itself */
+            void setNeighborhoodRadius(double const neighborhood_radius)
+            {
+                neighborhood_radius_ = neighborhood_radius;
+            }
+
+            /** \brief Return neighborhood radius
+             */
+            bool getNeighborhoodRadius() const
+            {
+                return neighborhood_radius_;
+            }
+
             void getPlannerData(base::PlannerData &data) const override;
 
             /** \brief Set a different nearest neighbors datastructure */
-            template <template <typename T> class NN>
+            template<template<typename T> class NN>
             void setNearestNeighbors()
             {
                 if (nn_ && nn_->size() != 0)
@@ -126,7 +140,36 @@ namespace ompl
 
             void setup() override;
 
-        protected:
+            protected:
+            /** \brief Representation of a motion
+
+                This only contains pointers to parent motions as we
+                only need to go backwards in the tree. */
+            class Motion
+            {
+                public:
+                Motion() = default;
+
+                /** \brief Constructor that allocates memory for the state and the control */
+                Motion(const SpaceInformation *si)
+                        : state(si->allocState()), control(si->allocControl())
+                {
+                }
+
+                ~Motion() = default;
+
+                /** \brief The state contained by the motion */
+                base::State *state{nullptr};
+
+                /** \brief The control contained by the motion */
+                Control *control{nullptr};
+
+                /** \brief The number of steps the control is applied for */
+                unsigned int steps{0};
+
+                /** \brief The parent motion in the exploration tree */
+                Motion *parent{nullptr};
+            };
 
             /** \brief Free the memory allocated by this planner */
             void freeMemory();
@@ -162,7 +205,14 @@ namespace ompl
             /** \brief The most recent goal motion.  Used for PlannerData computation */
             Motion *lastGoalMotion_{nullptr};
 
+            /** \brief The radius of the nearest neighbors lookup */
+            double neighborhood_radius_{1.0};
+
             std::vector<ompl::base::PlannerDataSample> samples_;
+
+            /** \brief path length for computing "best" */
+            base::PathLengthOptimizationObjective *path_length_{nullptr};
+
         };
     }
 }

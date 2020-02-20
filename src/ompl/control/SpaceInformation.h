@@ -42,6 +42,7 @@
 #include "ompl/base/SpaceInformation.h"
 #include "ompl/control/ControlSpace.h"
 #include "ompl/control/ControlSampler.h"
+#include "ompl/control/MotionsValidityChecker.h"
 #include "ompl/control/DirectedControlSampler.h"
 #include "ompl/control/StatePropagator.h"
 #include "ompl/control/Control.h"
@@ -57,6 +58,8 @@ namespace ompl
         /** \brief Forward declaration of ompl::control::SpaceInformation */
         OMPL_CLASS_FORWARD(SpaceInformation);
         /// @endcond
+
+        using MotionsValidityCheckerFn = std::function<bool(Motions const)>;
 
         /** \class ompl::control::SpaceInformationPtr
             \brief A shared pointer wrapper for ompl::control::SpaceInformation */
@@ -74,6 +77,22 @@ namespace ompl
             SpaceInformation(const base::StateSpacePtr &stateSpace, ControlSpacePtr controlSpace);
 
             ~SpaceInformation() override = default;
+
+            Motions propagateWhileMotionsValid(Motion *motion, Control const *control, int steps) const;
+
+            void setMotionsValidityChecker(const MotionsValidityCheckerFn &mvc);
+
+            void setMotionsValidityChecker(const MotionsValidityCheckerPtr &mvc)
+            {
+                motionsValidityChecker_ = mvc;
+                setup_ = false;
+            }
+
+            /** \brief Check if a given state is valid or not */
+            bool motionsValid(const Motions motions) const
+            {
+                return motionsValidityChecker_->isValid(motions);
+            }
 
             /** \brief Get the control space */
             const ControlSpacePtr &getControlSpace() const
@@ -301,6 +320,8 @@ namespace ompl
 
             /** \brief The state propagator used to model the motion of the system being planned for */
             StatePropagatorPtr statePropagator_;
+
+            MotionsValidityCheckerPtr motionsValidityChecker_;
 
             /** \brief The minimum number of steps to apply a control for */
             unsigned int minSteps_{0};
