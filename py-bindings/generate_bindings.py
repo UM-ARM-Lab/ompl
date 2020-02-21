@@ -38,6 +38,9 @@
 
 from os.path import join, dirname
 from sys import argv, setrecursionlimit
+import warnings
+warnings.simplefilter("ignore")
+
 from pygccxml import declarations
 from pygccxml.declarations.runtime_errors import declaration_not_found_t
 from pyplusplus.module_builder import call_policies

@@ -55,12 +55,12 @@ bool isStateValid(const oc::SpaceInformation *si, const ob::State *state)
     return si->satisfiesBounds(state);
 }
 
-bool motionsValid(const oc::SpaceInformation *si, oc::Motions const motions)
+bool motionsValid(const oc::SpaceInformation *si, oc::MyMotions const motions)
 {
     auto const length = std::accumulate(motions.cbegin(),
                                         motions.cend(),
                                         0.0,
-                                        [&](double acc, oc::Motion *motion)
+                                        [&](double acc, oc::MyMotion *motion)
                                         {
                                             if (motion->parent == nullptr)
                                             {
@@ -114,7 +114,7 @@ void plan()
     si->setStateValidityChecker([&si](const ob::State *state) { return isStateValid(si.get(), state); });
 
     // set state validity checking for this space
-    si->setMotionsValidityChecker([&si](const oc::Motions motions) { return motionsValid(si.get(), motions); });
+    si->setMotionsValidityChecker([&si](const oc::MyMotions motions) { return motionsValid(si.get(), motions); });
 
     // set the state propagation routine
     si->setStatePropagator(propagate);

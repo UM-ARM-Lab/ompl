@@ -50,13 +50,17 @@ from ompl import base as ob
 from ompl import control as oc
 
 
-def isStateValid(spaceInformation, state):
-    return spaceInformation.satisfiesBounds(state)
+def isStateValid(si, state):
+    return si.satisfiesBounds(state)
 
 
-def motionsValid(spaceInformation, motions):
-    print(motions[0])
-    return True
+def motionsValid(si, motions):
+    length = 0
+    for motion in motions:
+        if motion.getParentMotion() is not None:
+            d = si.distance(motion.getState(), motion.getParentMotion().getState())
+            length += d
+    return length < 4.0
 
 
 def propagate(start, control, duration, state):
@@ -103,7 +107,7 @@ def plan():
 
     # create a goal state
     goal = ob.State(space)
-    goal().setX(0.5)
+    goal().setX(1.0)
     goal().setY(0.0)
     goal().setYaw(0.0)
 
@@ -122,19 +126,25 @@ def plan():
     # attempt to solve the problem
     solved = ss.solve(10.0)
 
-    # if solved:
-    # print the path to screen
-    # print("Found solution:\n%s" % ss.getSolutionPath().printAsMatrix())
-    path = ss.getSolutionPath()
-    xs = []
-    ys = []
-    for state in path.getStates():
-        xs.append(state.getX())
-        ys.append(state.getY())
+    print(solved.asString())
+    if solved:
+        # print the path to screen
+        # print("Found solution:\n%s" % ss.getSolutionPath().printAsMatrix())
+        path = ss.getSolutionPath()
+        xs = []
+        ys = []
+        length = 0
+        for i in range(path.getStateCount() - 1):
+            state = path.getState(i)
+            next_state = path.getState(i+1)
+            xs.append(state.getX())
+            ys.append(state.getY())
+            length += space.distance(state, next_state)
 
-    plt.plot(xs, ys)
-    plt.axis("equal")
-    plt.show()
+        plt.title("length: {}".format(length))
+        plt.plot(xs, ys)
+        plt.axis("equal")
+        plt.show()
 
 
 if __name__ == "__main__":
