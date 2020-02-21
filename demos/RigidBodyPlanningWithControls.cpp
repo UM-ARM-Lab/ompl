@@ -105,7 +105,6 @@ void plan()
     ob::RealVectorBounds cbounds(2);
     cbounds.setLow(-10);
     cbounds.setHigh(10);
-
     cspace->setBounds(cbounds);
 
     // construct an instance of  space information from this control space

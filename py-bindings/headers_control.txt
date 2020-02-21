@@ -25,5 +25,6 @@ src/ompl/control/planners/syclop/SyclopRRT.h
 src/ompl/control/planners/sst/SST.h
 src/ompl/control/planners/cem/CEM.h
 src/ompl/control/planners/best_first_rrt/BestFirstRRT.h
-src/ompl/control/Motions.h>
+src/ompl/control/MyMotion.h
+src/ompl/control/MotionsValidityChecker.h
 py-bindings/ompl_py_control.h

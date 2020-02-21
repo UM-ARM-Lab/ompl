@@ -37,7 +37,7 @@
 #include "ompl/control/SpaceInformation.h"
 #include "ompl/control/SimpleDirectedControlSampler.h"
 #include "ompl/control/SteeredControlSampler.h"
-#include "ompl/control/Motions.h"
+#include "ompl/control/MyMotion.h"
 #include "ompl/util/Exception.h"
 #include <cassert>
 #include <utility>
@@ -258,6 +258,12 @@ void ompl::control::SpaceInformation::propagate(const base::State *state, const 
     }
 }
 
+void ompl::control::SpaceInformation::setMotionsValidityChecker(const MotionsValidityCheckerPtr &mvc)
+{
+    motionsValidityChecker_ = mvc;
+    setup_ = false;
+}
+
 void ompl::control::SpaceInformation::setMotionsValidityChecker(const MotionsValidityCheckerFn &mvc)
 {
     class FnMotionsValidityChecker : public MotionsValidityChecker
@@ -268,7 +274,7 @@ void ompl::control::SpaceInformation::setMotionsValidityChecker(const MotionsVal
         {
         }
 
-        bool isValid(const Motions motions) const override
+        bool isValid(const MyMotions motions) const override
         {
             return fn_(motions);
         }
@@ -285,14 +291,14 @@ void ompl::control::SpaceInformation::setMotionsValidityChecker(const MotionsVal
 }
 
 
-ompl::control::Motions ompl::control::SpaceInformation::propagateWhileMotionsValid(Motion *motion,
+ompl::control::MyMotions ompl::control::SpaceInformation::propagateWhileMotionsValid(MyMotion *motion,
                                                                                    Control const *control,
                                                                                    int steps) const
 {
     // fill motions with all the parents of motion
-    Motions all_motions;
-    Motions new_motions;
-    auto *tmp_motion = new Motion(this);
+    MyMotions all_motions;
+    MyMotions new_motions;
+    auto *tmp_motion = new MyMotion(this);
     tmp_motion->parent = motion->parent;
     tmp_motion->control = motion->control;
     tmp_motion->state = motion->state;
@@ -315,7 +321,7 @@ ompl::control::Motions ompl::control::SpaceInformation::propagateWhileMotionsVal
         // LEAK??
         // since these motions will be inserted into nn_, and nn_ cleans up all the things inside of it,
         // this might be fine?
-        auto *new_motion = new Motion(this);
+        auto *new_motion = new MyMotion(this);
         new_motion->parent = motion;
         statePropagator_->propagate(current_state, control, stepSize_, new_motion->state);
         copyControl(new_motion->control, control);
@@ -411,4 +417,22 @@ void ompl::control::SpaceInformation::printSettings(std::ostream &out) const
     out << "  - can propagate backward: " << (canPropagateBackward() ? "yes" : "no") << std::endl;
     out << "  - propagation step size: " << stepSize_ << std::endl;
     out << "  - propagation duration: [" << minSteps_ << ", " << maxSteps_ << "]" << std::endl;
+}
+
+/** \brief Set the minimum and maximum number of steps a control is propagated for */
+void ompl::control::SpaceInformation::setMinMaxControlDuration(unsigned int minSteps, unsigned int maxSteps)
+{
+	minSteps_ = minSteps;
+	maxSteps_ = maxSteps;
+}
+
+unsigned int ompl::control::SpaceInformation::getMaxControlDuration() const
+{
+	return maxSteps_;
+}
+
+
+bool ompl::control::SpaceInformation::motionsValid(const MyMotions motions) const
+{
+    return motionsValidityChecker_->isValid(motions);
 }
