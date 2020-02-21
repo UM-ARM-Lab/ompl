@@ -41,6 +41,8 @@
 import time
 import threading
 import sys
+import warnings
+warnings.simplefilter("ignore")
 from pygccxml import parser
 from pyplusplus import module_builder, messages
 from pyplusplus.module_builder import call_policies

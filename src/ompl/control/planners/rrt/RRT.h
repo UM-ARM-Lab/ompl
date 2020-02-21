@@ -120,7 +120,7 @@ namespace ompl
                 if (nn_ && nn_->size() != 0)
                     OMPL_WARN("Calling setNearestNeighbors will clear all states.");
                 clear();
-                nn_ = std::make_shared<NN<Motion *>>();
+                nn_ = std::make_shared<NN<MyMotion *>>();
                 setup();
             }
 
@@ -132,7 +132,7 @@ namespace ompl
             void freeMemory();
 
             /** \brief Compute distance between motions (actually distance between contained states) */
-            double distanceFunction(const Motion *a, const Motion *b) const
+            double distanceFunction(const MyMotion *a, const MyMotion *b) const
             {
                 return si_->distance(a->state, b->state);
             }
@@ -147,7 +147,7 @@ namespace ompl
             const SpaceInformation *siC_;
 
             /** \brief A nearest-neighbors datastructure containing the tree of motions */
-            std::shared_ptr<NearestNeighbors<Motion *>> nn_;
+            std::shared_ptr<NearestNeighbors<MyMotion *>> nn_;
 
             /** \brief The fraction of time the goal is picked as the state to expand towards (if such a state is
              * available) */
@@ -160,7 +160,7 @@ namespace ompl
             RNG rng_;
 
             /** \brief The most recent goal motion.  Used for PlannerData computation */
-            Motion *lastGoalMotion_{nullptr};
+            MyMotion *lastGoalMotion_{nullptr};
 
             std::vector<ompl::base::PlannerDataSample> samples_;
         };

@@ -33,6 +33,10 @@ namespace ompl
 
             ~MyMotion() = default;
 
+            base::State const *getState() const;
+
+            control::MyMotion const *getParentMotion() const;
+
             /** \brief The state contained by the motion */
             base::State *state{nullptr};
 
