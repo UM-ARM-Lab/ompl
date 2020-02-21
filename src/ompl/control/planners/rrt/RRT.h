@@ -39,7 +39,7 @@
 
 #include "ompl/control/planners/PlannerIncludes.h"
 #include "ompl/datastructures/NearestNeighbors.h"
-#include "ompl/control/Motions.h"
+#include "ompl/control/MyMotion.h"
 
 namespace ompl
 {

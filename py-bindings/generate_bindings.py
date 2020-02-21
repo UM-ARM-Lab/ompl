@@ -460,8 +460,12 @@ class ompl_control_generator_t(code_generator_t):
 
     def filter_declarations(self):
         code_generator_t.filter_declarations(self)
+        # force Motion to be included
+        self.ompl_ns.class_('::ompl::control::MyMotion').include()
         # rename STL vectors of certain types
         self.std_ns.class_('vector< ompl::control::Control * >').rename('vectorControlPtr')
+        # rename STL vectors of certain types
+        self.std_ns.class_('vector< ompl::control::MyMotion * >').rename('vectorMotionsPtr')
         # don't export variables that need a wrapper
         self.ompl_ns.variables(lambda decl: decl.is_wrapper_needed()).exclude()
         # force ControlSpace::allocControl to be exported.
@@ -531,6 +535,8 @@ class ompl_control_generator_t(code_generator_t):
         self.add_function_wrapper(
             'ompl::control::DirectedControlSamplerPtr(const ompl::control::SpaceInformation*)',
             'DirectedControlSamplerAllocator', 'Directed control sampler allocator')
+        self.add_function_wrapper('bool(const ompl::control::MyMotions)', \
+            'MotionsValidityCheckerFn', 'Motions validity checker function')
         self.add_function_wrapper(
             'void(const ompl::base::State*, const ompl::control::Control*, const double, '
             'ompl::base::State*)',

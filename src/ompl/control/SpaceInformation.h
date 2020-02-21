@@ -59,7 +59,7 @@ namespace ompl
         OMPL_CLASS_FORWARD(SpaceInformation);
         /// @endcond
 
-        using MotionsValidityCheckerFn = std::function<bool(Motions const)>;
+        using MotionsValidityCheckerFn = std::function<bool(MyMotions const)>;
 
         /** \class ompl::control::SpaceInformationPtr
             \brief A shared pointer wrapper for ompl::control::SpaceInformation */
@@ -78,21 +78,14 @@ namespace ompl
 
             ~SpaceInformation() override = default;
 
-            Motions propagateWhileMotionsValid(Motion *motion, Control const *control, int steps) const;
+            MyMotions propagateWhileMotionsValid(MyMotion *motion, Control const *control, int steps) const;
+
+            void setMotionsValidityChecker(const MotionsValidityCheckerPtr &mvc);
 
             void setMotionsValidityChecker(const MotionsValidityCheckerFn &mvc);
 
-            void setMotionsValidityChecker(const MotionsValidityCheckerPtr &mvc)
-            {
-                motionsValidityChecker_ = mvc;
-                setup_ = false;
-            }
-
             /** \brief Check if a given state is valid or not */
-            bool motionsValid(const Motions motions) const
-            {
-                return motionsValidityChecker_->isValid(motions);
-            }
+            bool motionsValid(const MyMotions motions) const;
 
             /** \brief Get the control space */
             const ControlSpacePtr &getControlSpace() const
@@ -164,11 +157,7 @@ namespace ompl
             }
 
             /** \brief Set the minimum and maximum number of steps a control is propagated for */
-            void setMinMaxControlDuration(unsigned int minSteps, unsigned int maxSteps)
-            {
-                minSteps_ = minSteps;
-                maxSteps_ = maxSteps;
-            }
+            void setMinMaxControlDuration(unsigned int minSteps, unsigned int maxSteps);
 
             /** \brief Set the minimum number of steps a control is propagated for */
             void setMinControlDuration(unsigned int minSteps)
@@ -189,10 +178,7 @@ namespace ompl
             }
 
             /** \brief Get the maximum number of steps a control is propagated for */
-            unsigned int getMaxControlDuration() const
-            {
-                return maxSteps_;
-            }
+            unsigned int getMaxControlDuration() const;
 
             /** \brief Allocate an instance of the DirectedControlSampler to use. This will be the default
                (SimpleDirectedControlSampler) unless

@@ -2,10 +2,11 @@
 // Created by pmitrano on 2/19/20.
 //
 
-#ifndef OMPL_PATHVALIDITYCHECKER_
-#define OMPL_PATHVALIDITYCHECKER_
+#ifndef OMPL_MOTIONSVALIDITYCHECKER_
+#define OMPL_MOTIONSVALIDITYCHECKER_
 
 
+#include "ompl/control/MyMotion.h"
 #include "ompl/util/ClassForward.h"
 
 namespace ompl
@@ -16,11 +17,8 @@ namespace ompl
         OMPL_CLASS_FORWARD(SpaceInformation);
         /// @endcond
 
-        OMPL_CLASS_FORWARD(Motion);
-        using Motions = std::vector<Motion *>;
-
         /// @cond IGNORE
-        /** \brief Forward declaration of ompl::base::StateValidityChecker */
+        /** \brief Forward declaration of ompl::control::MotionsValidityChecker */
         OMPL_CLASS_FORWARD(MotionsValidityChecker);
         /// @endcond
 
@@ -39,7 +37,7 @@ namespace ompl
 
             virtual ~MotionsValidityChecker() = default;
 
-            virtual bool isValid(Motions motions) const = 0;
+            virtual bool isValid(MyMotions motions) const = 0;
 
             protected:
             /** \brief The instance of space information this motions validity checker operates on */
@@ -61,7 +59,7 @@ namespace ompl
             }
 
             /** \brief Always return true (all motions are considered valid) */
-            bool isValid(Motions /*motions*/) const override
+            bool isValid(MyMotions /*motions*/) const override
             {
                 return true;
             }
@@ -69,4 +67,4 @@ namespace ompl
 
     }
 }
-#endif //OMPL_PATHVALIDITYCHECKER_
+#endif //OMPL_MOTIONSVALIDITYCHECKER_

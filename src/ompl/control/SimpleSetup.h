@@ -153,6 +153,16 @@ namespace ompl
                 si_->setStateValidityChecker(svc);
             }
 
+            void setMotionsValidityChecker(const control::MotionsValidityCheckerPtr &mvc)
+            {
+                si_->setMotionsValidityChecker(mvc);
+            }
+
+            void setMotionsValidityChecker(const control::MotionsValidityCheckerFn &mvc)
+            {
+                si_->setMotionsValidityChecker(mvc);
+            }
+
             /** \brief Set the state validity checker to use */
             void setStateValidityChecker(const base::StateValidityCheckerFn &svc)
             {
