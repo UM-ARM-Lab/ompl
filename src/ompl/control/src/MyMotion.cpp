@@ -19,3 +19,8 @@ const ompl::control::MyMotion *ompl::control::MyMotion::getParentMotion() const
 {
     return parent;
 }
+
+const ompl::control::Control *ompl::control::MyMotion::getControl() const
+{
+    return control;
+}

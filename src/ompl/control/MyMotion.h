@@ -37,10 +37,12 @@ namespace ompl
 
             control::MyMotion const *getParentMotion() const;
 
-            /** \brief The state contained by the motion */
+            Control const *getControl() const;
+
+            /** \brief The state contained by the motion. This is the state that control brought us to */
             base::State *state{nullptr};
 
-            /** \brief The control contained by the motion */
+            /** \brief The control contained by the motion. This is the control that took use from parent to state */
             Control *control{nullptr};
 
             /** \brief The number of steps the control is applied for */

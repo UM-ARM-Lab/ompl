@@ -314,6 +314,8 @@ ompl::control::MyMotions ompl::control::SpaceInformation::propagateWhileMotionsV
 
         tmp_motion = tmp_motion->parent;
     }
+    // now reverse
+    std::reverse(all_motions.begin(), all_motions.end());
 
     for (auto st{0}; st < steps; ++st)
     {
