@@ -125,6 +125,12 @@ bool ompl::control::SpaceInformation::canPropagateBackward() const
     return statePropagator_->canPropagateBackward();
 }
 
+void ompl::control::SpaceInformation::propagate_for_duration(const base::State *state, const Control *control,
+                                                             double const duration, base::State *result) const
+{
+    statePropagator_->propagate(state, control, duration, result);
+}
+
 void ompl::control::SpaceInformation::propagate(const base::State *state, const Control *control, int steps,
                                                 base::State *result) const
 {

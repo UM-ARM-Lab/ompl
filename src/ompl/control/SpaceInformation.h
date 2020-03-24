@@ -217,6 +217,16 @@ namespace ompl
                 @{ */
 
             /** \brief Propagate the model of the system forward, starting a a given state, with a given control, for a
+               duration.
+                \param state the state to start at
+                \param control the control to apply
+                \param duration the duration
+               getPropagationStepSize()
+                \param result the state at the end of the propagation */
+            void propagate_for_duration(const base::State *state, const Control *control, double duration,
+                                        base::State *result) const;
+
+            /** \brief Propagate the model of the system forward, starting a a given state, with a given control, for a
                given number of steps.
                 \param state the state to start at
                 \param control the control to apply

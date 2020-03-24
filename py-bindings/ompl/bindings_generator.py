@@ -128,11 +128,11 @@ class code_generator_t(object):
         self.heartbeat = threading.Thread(target=Heartbeat(60))
         self.heartbeat.daemon = True
         self.heartbeat.start()
-        xml_generator_config = parser.load_xml_generator_configuration("/home/pmitrano/coursework/692/final_project/cmake-build-debug/ompl/castxml.cfg")
+        xml_generator_config = parser.load_xml_generator_configuration("/home/pmitrano/coursework/692/final_project/cmake-build-release/ompl/castxml.cfg")
         self.mb = module_builder.module_builder_t(
             files=['bindings/' + name + '.h'],
             # cache is not used with compilation_mode = parser.COMPILATION_MODE.ALL_AT_ONCE
-            #cache = '/home/pmitrano/coursework/692/final_project/cmake-build-debug/pyplusplus_'+name+'.cache',
+            #cache = '/home/pmitrano/coursework/692/final_project/cmake-build-release/pyplusplus_'+name+'.cache',
             xml_generator_config=xml_generator_config,
             start_with_declarations=['ompl::' + name],
             compilation_mode=parser.COMPILATION_MODE.ALL_AT_ONCE,
