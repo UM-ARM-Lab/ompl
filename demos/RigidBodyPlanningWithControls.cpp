@@ -179,7 +179,6 @@ void plan()
     planner->setIterations(5);
     planner->setNumSamples(100);
     planner->setTopK(10);
-    planner->setTimeSteps(5);
 
     // perform setup steps for the planner
     planner->setup();

@@ -78,20 +78,7 @@ if(PYTHON_EXEC)
     set(PYTHON_VERSION_NO_DOTS "${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
 endif()
 
-find_library(PYTHON_LIBRARIES
-    NAMES "python${PYTHON_VERSION_NO_DOTS}" "python${PYTHON_VERSION}" "python${PYTHON_VERSION}m"
-    PATHS
-        "${PYTHON_PREFIX}/lib"
-        [HKEY_LOCAL_MACHINE\\SOFTWARE\\Python\\PythonCore\\${PYTHON_VERSION}\\InstallPath]/libs
-    PATH_SUFFIXES "" "python${PYTHON_VERSION}/config" "x86_64-linux-gnu" "i386-linux-gnu"
-    DOC "Python libraries" NO_DEFAULT_PATH)
-
-find_path(PYTHON_INCLUDE_DIRS "Python.h"
-    PATHS
-        "${PYTHON_PREFIX}/include"
-        [HKEY_LOCAL_MACHINE\\SOFTWARE\\Python\\PythonCore\\${PYTHON_VERSION}\\InstallPath]/include
-    PATH_SUFFIXES python${PYTHON_VERSION} python${PYTHON_VERSION}m
-    DOC "Python include directories" NO_DEFAULT_PATH)
+find_package(PythonLibs REQUIRED)
 
 execute_process(COMMAND "${PYTHON_EXEC}" "-c"
     "from distutils.sysconfig import get_python_lib; print(get_python_lib())"

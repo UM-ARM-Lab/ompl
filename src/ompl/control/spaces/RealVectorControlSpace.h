@@ -48,7 +48,7 @@ namespace ompl
         /** \brief Uniform sampler for the R<sup>n</sup> state space */
         class RealVectorControlUniformSampler : public ControlSampler
         {
-        public:
+          public:
             /** \brief Constructor */
             RealVectorControlUniformSampler(const ControlSpace *space) : ControlSampler(space)
             {
@@ -60,11 +60,11 @@ namespace ompl
         /** \brief A control space representing R<sup>n</sup>. */
         class RealVectorControlSpace : public ControlSpace
         {
-        public:
+          public:
             /** \brief The definition of a control in R<sup>n</sup> */
             class ControlType : public Control
             {
-            public:
+              public:
                 /** \brief Access element i of values.  This does not
                     check whether the index is within bounds */
                 double operator[](unsigned int i) const
@@ -86,7 +86,7 @@ namespace ompl
             /** \brief Constructor takes the state space the controls correspond to and the dimension of the space of
              * controls, \e dim */
             RealVectorControlSpace(const base::StateSpacePtr &stateSpace, unsigned int dim)
-              : ControlSpace(stateSpace), dimension_(dim), bounds_(dim), controlBytes_(dim * sizeof(double))
+                    : ControlSpace(stateSpace), dimension_(dim), bounds_(dim), controlBytes_(dim * sizeof(double))
             {
                 setName("RealVector" + getName());
                 type_ = CONTROL_SPACE_REAL_VECTOR;
@@ -102,6 +102,19 @@ namespace ompl
             {
                 return bounds_;
             }
+
+            bool satisfiesBounds(Control const *control) const
+            {
+                auto const *real_vector_control = dynamic_cast<ControlType const *>(control);
+                for (unsigned int i = 0; i < dimension_; ++i)
+                    if (real_vector_control->values[i] - std::numeric_limits<double>::epsilon() > bounds_.high[i] ||
+                        real_vector_control->values[i] + std::numeric_limits<double>::epsilon() < bounds_.low[i])
+                    {
+                        return false;
+                    }
+                return true;
+            }
+
 
             unsigned int getDimension() const override;
 
@@ -134,14 +147,14 @@ namespace ompl
             /** \brief Deserializes a control from the serialization buffer. */
             void deserialize(Control *ctrl, const void *serialization) const override;
 
-        protected:
+          protected:
             /** \brief The dimension of the state space */
             unsigned int dimension_;
 
             /** \brief The bounds on controls */
             base::RealVectorBounds bounds_;
 
-        private:
+          private:
             std::size_t controlBytes_;
         };
     }

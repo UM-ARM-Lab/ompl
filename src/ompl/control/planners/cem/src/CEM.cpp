@@ -1,20 +1,17 @@
-#include "ompl/base/objectives/PathLengthOptimizationObjective.h"
+#include <limits>
+
 #include "ompl/base/Planner.h"
+#include "ompl/base/objectives/PathLengthOptimizationObjective.h"
 #include "ompl/control/PathControl.h"
-#include "ompl/control/ControlSpaceTypes.h"
 #include "ompl/control/spaces/RealVectorControlSpace.h"
 #include "ompl/tools/config/SelfConfig.h"
 
 #include "ompl/control/planners/cem/CEM.h"
 
-#include <queue>
-#include <numeric>
-
-
-ompl::control::CEM::CEM(const ompl::base::SpaceInformationPtr &si) :
-        ompl::base::Planner(si, "CEM"),
+ompl::control::CEM::CEM(const base::SpaceInformationPtr &si) :
+        base::Planner(si, "CEM"),
         siC_(std::static_pointer_cast<SpaceInformation>(si)),
-        control_dim_(siC_->getControlSpace()->getDimension())
+        n_z_(static_cast<int>(siC_->getControlSpace()->getDimension()))
 {
     specs_.approximateSolutions = true;
     specs_.optimizingPaths = true;
@@ -22,7 +19,7 @@ ompl::control::CEM::CEM(const ompl::base::SpaceInformationPtr &si) :
 
     Planner::declareParam<unsigned int>("iterations", this, &ompl::control::CEM::setIterations,
                                         &ompl::control::CEM::getIterations, "1:1:1000");
-    Planner::declareParam<unsigned int>("time_steps", this, &ompl::control::CEM::setTimeSteps,
+    Planner::declareParam<unsigned int>("time_steps", this, &ompl::control::CEM::setNPrimitives,
                                         &ompl::control::CEM::getTimeSteps, "1:1:1000");
     Planner::declareParam<unsigned int>("n_samples", this, &ompl::control::CEM::setNumSamples,
                                         &ompl::control::CEM::getNumSamples, "1:1:1000");
@@ -30,7 +27,6 @@ ompl::control::CEM::CEM(const ompl::base::SpaceInformationPtr &si) :
                                         "1:1:1000");
 
     addPlannerProgressProperty("iterations INTEGER", [this] { return iterationsProperty(); });
-    addPlannerProgressProperty("best cost REAL", [this] { return bestCostProperty(); });
 }
 
 // optional, if additional setup/configuration is needed, the setup() method can be implemented
@@ -38,176 +34,183 @@ void ompl::control::CEM::setup()
 {
     Planner::setup();
     tools::SelfConfig sc(si_, getName());
-
-    // Setup optimization objective
-    //
-    // If no optimization objective was specified, then default to
-    // optimizing path length as computed by the distance() function
-    // in the state space.
-    if (pdef_)
-    {
-        if (pdef_->hasOptimizationObjective())
-            opt_ = pdef_->getOptimizationObjective();
-        else
-        {
-            OMPL_INFORM("%s: No optimization objective specified. Defaulting to optimizing path length for the allowed "
-                        "planning time.",
-                        getName().c_str());
-            opt_ = std::make_shared<ompl::base::PathLengthOptimizationObjective>(si_);
-
-            // Store the new objective in the problem def'n
-            pdef_->setOptimizationObjective(opt_);
-        }
-
-        // Set the bestCost_ and prunedCost_ as infinite
-        bestCost_ = opt_->infiniteCost();
-    } else
-    {
-        OMPL_INFORM("%s: problem definition is not set, deferring setup completion...", getName().c_str());
-        setup_ = false;
-    }
-
-    // Initialize the control sampling distribution.
-    gaussians_.resize(time_steps_ * control_dim_);
 }
 
 
-ompl::base::PlannerStatus ompl::control::CEM::solve(const ompl::base::PlannerTerminationCondition &ptc)
+ompl::base::PlannerStatus ompl::control::CEM::solve(const base::PlannerTerminationCondition &ptc)
 {
     checkValidity();
 
-    // get input states with PlannerInputStates helper, pis_
-    const ompl::base::State *start = pis_.nextStart();
+    auto const real_control_space = siC_->getControlSpace()->as<RealVectorControlSpace>();
+
+    const base::State *start = pis_.nextStart();
     if (pis_.haveMoreStartStates())
     {
         OMPL_ERROR("%s: CEM only supports one start state!", getName().c_str());
-        return ompl::base::PlannerStatus::INVALID_START;
+        return base::PlannerStatus::INVALID_START;
     }
 
-    // get the goal
-    const ompl::base::Goal *goal = pdef_->getGoal().get();
+    auto const *goal = pdef_->getGoal()->as<base::GoalRegion>();
 
-    // if it does, terminate planning.
-    ompl::base::Cost lowest_cost{opt_->infiniteCost()};
-    auto state = si_->allocState();
-    auto resulting_state{si_->allocState()};
-    auto u = siC_->allocControl()->as<ompl::control::RealVectorControlSpace::ControlType>();
-
-    struct CEMSolution
-    {
-        base::Cost cost_;
-        MyControls controls_;
-
-    public:
-        CEMSolution(base::Cost cost, MyControls controls) : cost_(cost), controls_(controls)
-        {}
-
-        CEMSolution() = default;
-
-        bool operator<(const CEMSolution &other) const
-        {
-            // TODO: use the opt_->costIsBetterThan somehow
-            return cost_.value() < other.cost_.value();
-        }
-    };
-
-    std::vector<CEMSolution> solutions;
     auto best_path = std::make_shared<ompl::control::PathControl>(siC_);
+    arma::uword params_dim = n_primitives_ * n_z_;
+
+    auto const initial_parameters = parameters_initializer_();
+    gmm_model.reset(params_dim, n_mixture_components_);
+    gmm_model.set_means(initial_parameters);
+    if (initial_variance_.size() != static_cast<size_t>(n_z_))
+    {
+        throw std::runtime_error("initial variance must have one variance per state dimension");
+    }
+    arma::vec cov_diag = arma::ones(params_dim);
+    for (auto i{0u}; i < params_dim; ++i)
+    {
+        auto const j = i % n_z_;
+        cov_diag(i) = initial_variance_[j];
+    }
+    arma::mat const initial_cov = arma::diagmat(cov_diag);
+    arma::cube initial_covs = arma::zeros(params_dim, params_dim, n_mixture_components_);
+
+    for (auto i{0}; i < n_mixture_components_; ++i)
+    {
+        initial_covs.slice(i) = initial_cov;
+    }
+    gmm_model.set_fcovs(initial_covs);
+
+    double best_cost{std::numeric_limits<double>::max()};
     for (auto iter{0u}; iter < iterations_; ++iter)
     {
-        //TODO: don't ignore PTC
-
-        // start state
-        si_->copyState(state, start);
-
-        for (auto j{0u}; j < num_samples_; ++j)
+        auto const iter_start = std::chrono::high_resolution_clock::now().time_since_epoch();
+        if (ptc)
         {
+            OMPL_INFORM("Exiting based on termination criterion");
+            break;
+        }
+
+        // repeatedly sample until we get enough valid paths
+        auto j{0u};
+        auto attempts{0u};
+        arma::vec costs(num_samples_);
+        arma::mat all_params(params_dim, num_samples_, arma::fill::zeros);
+        std::vector<PathControl> paths;
+        while (true)
+        {
+            ++attempts;
+            Parameters const params_j = gmm_model.generate();
+
             // Sample controls and evaluate the cost
-            ompl::base::Cost accumulated_cost{0};
+
+            auto const controls_z_j = parameters_converter_(params_j);
+
+            auto path_is_valid = true;
             ompl::control::PathControl path{siC_};
-            MyControls controls;
-            for (auto t{0u}; t < time_steps_; ++t)
+            auto *final_state = si_->allocState();
+            auto *state = si_->allocState();
+            si_->copyState(state, start);
+            for (auto t{0u}; t < controls_z_j.size(); ++t)
             {
-                // sample one control and a duration for this time step
-                auto ui{0u};
-                for (; ui < control_dim_; ++ui)
+                auto const control = controls_z_j[t];
+
+                if (!real_control_space->satisfiesBounds(control))
                 {
-                    double sample = rng_.gaussian(gaussians_[t * control_dim_ + ui].mean,
-                                                  gaussians_[t * control_dim_ + ui].stddev);
-                    (*u)[ui] = sample;
-                    controls.emplace_back(sample);
+                    path_is_valid = false;
+                    break;
                 }
 
-                // TODO: sample this also? Can't use gaussian because it's negative, but idk how to re-fit a gamma dist
-                auto const steps = 1;
+                auto const valid = propagate_while_valid_fn_(state, control, final_state, path, siC_);
+                if (!valid)
+                {
+                    path_is_valid = false;
+                    break;
+                }
 
-                // Try out the sampled actions and accumulate cost
-                auto cost = opt_->costToGo(state, goal);
-                accumulated_cost = opt_->combineCosts(accumulated_cost, cost);
-                auto const valid_steps = siC_->propagateWhileValid(state, u, steps, resulting_state);
-                path.append(state, u, valid_steps * siC_->getPropagationStepSize());
+                siC_->copyState(state, final_state);
+            }
+            si_->freeState(state);
 
-                si_->copyState(state, resulting_state);
+            if (!path_is_valid)
+            {
+                continue;
             }
 
-            // don't forget to append the final state
-            path.append(resulting_state);
+            si_->freeState(final_state);
+            auto const path_cost = cost_fn_(path, goal, siC_);
 
-            // insert into the priority queue
-            solutions.emplace_back(CEMSolution{accumulated_cost, controls});
+            debug_sampled_path_fn_(path, path_cost);
 
-            // keep it if it's the best so far
-            if (opt_->isCostBetterThan(accumulated_cost, lowest_cost))
+            paths.emplace_back(path);
+            OMPL_INFORM("feasible sample %d/%d found with cost %f on attempt %d",
+                        j,
+                        num_samples_,
+                        path_cost,
+                        attempts);
+
+            costs(j) = path_cost;
+            all_params.col(j) = params_j;
+
+            ++j;
+
+            if (j == num_samples_)
             {
-                OMPL_INFORM("new best path: %f", accumulated_cost);
-                lowest_cost = accumulated_cost;
-                best_path = std::make_shared<ompl::control::PathControl>(path);
+                break;
             }
         }
 
-        // pick the top K sample and refit the guassians
-        sort(solutions.begin(), solutions.end());
+        // pick the top K sample and refit the distribution
+        arma::uvec const sorted_indices = arma::sort_index(costs);
+        arma::uvec const top_k_indices = sorted_indices(arma::span(0, top_k_ - 1));
+        auto const top_k_params = all_params.cols(top_k_indices);
+        auto const km_iter = 4;
+        auto const em_iter = 10;
+        auto const var_floor = 1e-10;
+        auto const verbose = false;
+        bool success = gmm_model.learn(top_k_params,
+                                       n_mixture_components_,
+                                       arma::maha_dist,
+                                       arma::random_subset,
+                                       km_iter,
+                                       em_iter,
+                                       var_floor,
+                                       verbose);
 
-        // make the first axis the control dimensions, second axis top_k samples
-        std::vector<std::vector<double>> controls_by_dimension(control_dim_ * time_steps_);
-        for (auto it = solutions.cbegin(); it != solutions.cbegin() + top_k_; ++it)
+
+        for (auto i{0u}; i < top_k_; ++i)
         {
-            for (auto dim{0u}; dim < control_dim_ * time_steps_; ++dim)
-            {
-                auto const x = it->controls_[dim];
-                controls_by_dimension[dim].push_back(x);
-            }
+            auto const path = paths.at(sorted_indices(i));
+            auto const path_cost = costs(sorted_indices(i));
+            debug_fn_2_(path, path_cost);
         }
 
-        // compute the new mean and standard deviation along each axis
-        for (auto dim{0u}; dim < control_dim_ * time_steps_; ++dim)
+        best_path = std::make_shared<ompl::control::PathControl>(paths.at(sorted_indices(0)));
+        best_cost = costs(sorted_indices(0));
+
+        // add noise to the covariances, as the paper suggests. To reduce local minima
+        auto fcovs = arma::cube(gmm_model.fcovs.begin(), params_dim, params_dim, n_mixture_components_);
+        for (auto i{0}; i < n_mixture_components_; ++i)
         {
-            auto const &top_k_controls_for_dim = controls_by_dimension[dim];
-            auto const mean =
-                    std::accumulate(top_k_controls_for_dim.cbegin(), top_k_controls_for_dim.cend(), 0.0) / top_k_;
-            auto varf = [&](double const sum, double x)
-            {
-                return sum + std::pow(x - mean, 2) / top_k_;
-            };
-            auto const var = std::accumulate(top_k_controls_for_dim.cbegin(), top_k_controls_for_dim.cend(), 0.0, varf);
-            auto const stdev = std::sqrt(var);
-            gaussians_[dim].mean = mean;
-            gaussians_[dim].stddev = stdev;
+            fcovs.slice(i) += 1e-4 * initial_covs.slice(i);
         }
+        gmm_model.set_fcovs(fcovs);
+
+        if (not success)
+        {
+            OMPL_ERROR("Error fitting GMM");
+        }
+
+        auto const now = std::chrono::high_resolution_clock::now().time_since_epoch();
+        auto const iter_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(iter_start - now).count();
+
+        on_iter_end_fn_(gmm_model, best_cost, iter, iter_time_ms);
     }
 
-    ompl::base::PlannerSolution psol(best_path);
+    base::PlannerSolution psol(best_path);
     psol.setPlannerName(getName());
-    psol.setOptimized(opt_, lowest_cost, true);
+    psol.setOptimized(opt_, base::Cost{best_cost}, true);
 
     pdef_->addSolutionPath(psol);
 
-    // are we freeing memory that is owned by the psol?
-    si_->freeState(state);
-    si_->freeState(resulting_state);
-    siC_->freeControl(u);
-
-    return ompl::base::PlannerStatus::APPROXIMATE_SOLUTION;
+    // FIXME: are we freeing memory correctly, for state/resulting state, or path? or psol?
+    return base::PlannerStatus::APPROXIMATE_SOLUTION;
 }
 
 void ompl::control::CEM::clear()
@@ -216,7 +219,7 @@ void ompl::control::CEM::clear()
     // clear the data structures here
 }
 
-void ompl::control::CEM::getPlannerData(ompl::base::PlannerData &data) const
+void ompl::control::CEM::getPlannerData(base::PlannerData &data) const
 {
     // fill data with the states and edges that were created
     // in the exploration data structure
@@ -230,7 +233,7 @@ unsigned int ompl::control::CEM::getTopK() const
 
 unsigned int ompl::control::CEM::getTimeSteps() const
 {
-    return time_steps_;
+    return n_primitives_;
 }
 
 void ompl::control::CEM::setTopK(unsigned int top_k)
@@ -238,13 +241,14 @@ void ompl::control::CEM::setTopK(unsigned int top_k)
     top_k_ = top_k;
 }
 
-void ompl::control::CEM::setTimeSteps(unsigned int time_steps)
+void ompl::control::CEM::setNPrimitives(unsigned int n_primitives)
 {
-    time_steps_ = time_steps;
+    n_primitives_ = n_primitives;
+}
 
-    // this changes the dimensionality of our sampling distribution,
-    // so we must construct new means/stddevs.
-    gaussians_.resize(time_steps_ * control_dim_);
+void ompl::control::CEM::setNMixtureComponents(unsigned int n_components)
+{
+    n_mixture_components_ = n_components;
 }
 
 unsigned int ompl::control::CEM::getIterations() const
@@ -265,4 +269,9 @@ void ompl::control::CEM::setNumSamples(unsigned int num_samples)
 unsigned int ompl::control::CEM::getNumSamples() const
 {
     return num_samples_;
+}
+
+void ompl::control::CEM::setInitialVariance(std::vector<double> initial_variance)
+{
+    initial_variance_ = initial_variance;
 }

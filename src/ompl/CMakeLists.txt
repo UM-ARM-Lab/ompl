@@ -52,8 +52,11 @@ if(MSVC)
 else(MSVC)
     add_library(ompl SHARED ${OMPL_SOURCE_CODE})
 endif(MSVC)
+target_include_directories(ompl PUBLIC ${ARMADILLO_INCLUDE_DIRS})
 target_link_libraries(ompl
     ${OMPL_LINK_LIBRARIES}
+    Eigen3::Eigen
+    ${ARMADILLO_LIBRARIES}
     ${Boost_DATE_TIME_LIBRARY}
     ${Boost_THREAD_LIBRARY}
     ${Boost_SERIALIZATION_LIBRARY}

@@ -1,29 +1,45 @@
 #pragma once
 
-#include "ompl/base/Planner.h"
-#include "ompl/base/StateValidityChecker.h"
-#include "ompl/util/RandomNumbers.h"
-#include "ompl/control/SpaceInformation.h"
+#include <ompl/base/OptimizationObjective.h>
+#include <ompl/base/Planner.h>
+#include <ompl/base/StateValidityChecker.h>
+#include <ompl/base/goals/GoalRegion.h>
+#include <ompl/control/PathControl.h>
+#include <ompl/control/SpaceInformation.h>
+#include <ompl/util/RandomNumbers.h>
 
 #include <random>
 #include <memory>
 #include <vector>
-
-struct Gaussian
-{
-    double mean{0.0};
-    double stddev{1.0};
-};
+#include <functional>
+#include <armadillo>
 
 namespace ompl
 {
     namespace control
     {
-        using MyControls = std::vector<double>;
 
         class CEM : public base::Planner
         {
-        public:
+          public:
+            using Controls = std::vector<Control *>;
+            using Parameters = arma::vec;
+            using ParametersConverter = std::function<Controls(Parameters)>;
+            using ParametersInitializer = std::function<Parameters()>;
+            using PathCostFn = std::function<double(const PathControl &, base::GoalRegion const*, SpaceInformationPtr)>;
+            using PropagateWhileValidFn = std::function<bool(base::State * , Control const * , base::State * ,
+                                                             PathControl & , SpaceInformationPtr const)>;
+            using DebugSampledPathFn = std::function<void(PathControl, float)>;
+            using IterEndCallback = std::function<void(arma::gmm_full const &, double, unsigned int, long)>;
+
+            ParametersConverter parameters_converter_;
+            ParametersInitializer parameters_initializer_;
+            DebugSampledPathFn debug_sampled_path_fn_;
+            DebugSampledPathFn debug_fn_2_;
+            PropagateWhileValidFn propagate_while_valid_fn_;
+            IterEndCallback on_iter_end_fn_;
+            PathCostFn cost_fn_;
+
             explicit CEM(const base::SpaceInformationPtr &si);
 
             ~CEM() override = default;
@@ -50,17 +66,15 @@ namespace ompl
 
             unsigned int getTimeSteps() const;
 
-            void setTimeSteps(unsigned int time_steps);
+            void setNPrimitives(unsigned int n_primitives);
+
+            void setNMixtureComponents(unsigned int n_components);
+
+            void setInitialVariance(std::vector<double> initial_variance);
 
             unsigned int iterations() const
             {
                 return iterations_;
-            }
-
-
-            base::Cost bestCost() const
-            {
-                return bestCost_;
             }
 
             std::string iterationsProperty() const
@@ -68,20 +82,14 @@ namespace ompl
                 return std::to_string(iterations());
             }
 
-            std::string bestCostProperty() const
-            {
-                return std::to_string(bestCost().value());
-            }
-
-        private:
-            base::Cost bestCost_{std::numeric_limits<double>::quiet_NaN()};
+          private:
             unsigned int iterations_{1};
-            unsigned int time_steps_{1};
+            unsigned int n_primitives_{1};
             unsigned int top_k_{10};
+            std::vector<double> initial_variance_;
             unsigned int num_samples_{100};
+            int n_mixture_components_{100};
             base::OptimizationObjectivePtr opt_;
-            // std::gamma_distribution<> steps_distribution(1.0);
-            std::vector<Gaussian> gaussians_;
             RNG rng_;
 
             /** \brief The base::SpaceInformation cast as control::SpaceInformation, for convenience */
@@ -89,7 +97,8 @@ namespace ompl
 
             /** \brief dimension of control space */
             // this member MUST be declared after siC_
-            unsigned int control_dim_;
+            int n_z_;
+            arma::gmm_full gmm_model;
         };
     }
 }
