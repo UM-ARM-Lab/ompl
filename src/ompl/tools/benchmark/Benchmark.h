@@ -44,10 +44,29 @@ namespace ompl
 {
     namespace tools
     {
+        struct VecDesc
+        {
+            std::vector<size_t> dims;
+            std::vector<double> value;
+        };
+
+        struct Metric
+        {
+            std::string name;
+            std::vector<size_t> dims;
+            std::vector<double> value;
+        };
+
+        using Metrics = std::vector<Metric>;
+
+        using MetricsCallback = std::function<void(long time,
+                                                   double const,
+                                                   Metrics other_metrics)>;
+
         /** \brief Benchmark a set of planners on a problem instance */
         class Benchmark
         {
-        public:
+          public:
             /** \brief This structure contains information about the
                 activity of a benchmark instance.  If the instance is
                 running, it is possible to find out information such
@@ -159,14 +178,9 @@ namespace ompl
                 Request(double maxTime = 5.0, double maxMem = 4096.0, unsigned int runCount = 100,
                         double timeBetweenUpdates = 0.05, bool displayProgress = true, bool saveConsoleOutput = true,
                         bool useThreads = true, bool simplify = true)
-                  : maxTime(maxTime)
-                  , maxMem(maxMem)
-                  , runCount(runCount)
-                  , timeBetweenUpdates(timeBetweenUpdates)
-                  , displayProgress(displayProgress)
-                  , saveConsoleOutput(saveConsoleOutput)
-                  , useThreads(useThreads)
-                  , simplify(simplify)
+                        : maxTime(maxTime), maxMem(maxMem), runCount(runCount), timeBetweenUpdates(timeBetweenUpdates),
+                          displayProgress(displayProgress), saveConsoleOutput(saveConsoleOutput),
+                          useThreads(useThreads), simplify(simplify)
                 {
                 }
 
@@ -202,7 +216,7 @@ namespace ompl
             /** \brief Constructor needs the SimpleSetup instance needed for planning. Optionally, the experiment name
              * (\e name) can be specified */
             Benchmark(geometric::SimpleSetup &setup, const std::string &name = std::string())
-              : gsetup_(&setup), csetup_(nullptr)
+                    : gsetup_(&setup), csetup_(nullptr)
             {
                 exp_.name = name;
             }
@@ -210,7 +224,7 @@ namespace ompl
             /** \brief Constructor needs the SimpleSetup instance needed for planning. Optionally, the experiment name
              * (\e name) can be specified */
             Benchmark(control::SimpleSetup &setup, const std::string &name = std::string())
-              : gsetup_(nullptr), csetup_(&setup)
+                    : gsetup_(nullptr), csetup_(&setup)
             {
                 exp_.name = name;
             }
@@ -254,7 +268,7 @@ namespace ompl
             {
                 if (planner &&
                     planner->getSpaceInformation().get() !=
-                        (gsetup_ != nullptr ? gsetup_->getSpaceInformation().get() : csetup_->getSpaceInformation().get()))
+                    (gsetup_ != nullptr ? gsetup_->getSpaceInformation().get() : csetup_->getSpaceInformation().get()))
                     throw Exception("Planner instance does not match space information");
                 planners_.push_back(planner);
             }
@@ -262,7 +276,8 @@ namespace ompl
             /** \brief Add a planner allocator to use. */
             void addPlannerAllocator(const base::PlannerAllocator &pa)
             {
-                planners_.push_back(pa(gsetup_ != nullptr ? gsetup_->getSpaceInformation() : csetup_->getSpaceInformation()));
+                planners_.push_back(
+                        pa(gsetup_ != nullptr ? gsetup_->getSpaceInformation() : csetup_->getSpaceInformation()));
             }
 
             /** \brief Clear the set of planners to be benchmarked */
@@ -329,7 +344,7 @@ namespace ompl
              */
             bool saveResultsToFile() const;
 
-        protected:
+          protected:
             /** \brief The instance of the problem to benchmark (if geometric planning) */
             geometric::SimpleSetup *gsetup_;
 

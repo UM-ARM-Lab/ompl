@@ -42,6 +42,7 @@
 #include "ompl/base/objectives/MechanicalWorkOptimizationObjective.h"
 #include "ompl/tools/config/SelfConfig.h"
 #include <limits>
+#include <fmt/core.h>
 
 ompl::control::SST::SST(const SpaceInformationPtr &si) : base::Planner(si, "SST")
 {
@@ -89,8 +90,7 @@ void ompl::control::SST::setup()
                           "functions w.r.t. state and control. This optimization objective will result in undefined "
                           "behavior",
                           getName().c_str());
-        }
-        else
+        } else
         {
             OMPL_WARN("%s: No optimization object set. Using path length", getName().c_str());
             opt_ = std::make_shared<base::PathLengthOptimizationObjective>(si_);
@@ -196,8 +196,7 @@ ompl::control::SST::Witness *ompl::control::SST::findClosestWitness(ompl::contro
             witnesses_->add(closest);
         }
         return closest;
-    }
-    else
+    } else
     {
         auto *closest = new Witness(siC_);
         closest->linkRep(node);
@@ -247,6 +246,7 @@ ompl::base::PlannerStatus ompl::control::SST::solve(const base::PlannerTerminati
     base::State *xstate = si_->allocState();
 
     unsigned iterations = 0;
+    auto start_time = std::chrono::high_resolution_clock::now().time_since_epoch();
 
     while (ptc == false)
     {
@@ -312,7 +312,24 @@ ompl::base::PlannerStatus ompl::control::SST::solve(const base::PlannerTerminati
                     prevSolution_.push_back(si_->cloneState(solTrav->state_));
                     prevSolutionCost_ = solution->accCost_;
 
-                    OMPL_INFORM("Found solution with cost %.2f", solution->accCost_.value());
+                    PathControl path(si_);
+                    for (int i = prevSolution_.size() - 1; i >= 1; --i)
+                    {
+                        path.append(prevSolution_[i], prevSolutionControls_[i - 1],
+                                    prevSolutionSteps_[i - 1] * siC_->getPropagationStepSize());
+                    }
+                    path.append(prevSolution_[0]);
+                    path.interpolate();
+                    debug_sampled_path_fn_(path, solution->accCost_.value());
+
+                    auto const now = std::chrono::high_resolution_clock::now().time_since_epoch();
+                    auto const dt = now - start_time;
+                    auto const time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt).count();
+
+                    OMPL_INFORM("Found solution with cost %.2f %6d", solution->accCost_.value(), time_ms);
+
+                    auto const path_cost = cost_fn_(path, goal->as<base::GoalRegion>(), siC_);
+                    on_metrics_fn_(time_ms, path_cost, {});
                     sufficientlyShort = opt_->isSatisfied(solution->accCost_);
                     if (sufficientlyShort)
                         break;
@@ -438,8 +455,7 @@ void ompl::control::SST::getPlannerData(base::PlannerData &data) const
                              control::PlannerDataEdgeControl(m->control_, m->steps_ * delta));
             else
                 data.addEdge(base::PlannerDataVertex(m->parent_->state_), base::PlannerDataVertex(m->state_));
-        }
-        else
+        } else
             data.addStartVertex(base::PlannerDataVertex(m->state_));
     }
 }

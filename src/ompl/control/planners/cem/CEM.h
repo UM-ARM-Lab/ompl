@@ -13,6 +13,7 @@
 #include <vector>
 #include <functional>
 #include <armadillo>
+#include <ompl/tools/benchmark/Benchmark.h>
 
 namespace ompl
 {
@@ -26,12 +27,12 @@ namespace ompl
             using Parameters = arma::vec;
             using ParametersConverter = std::function<Controls(Parameters)>;
             using ParametersInitializer = std::function<Parameters()>;
-            using PathCostFn = std::function<double(const PathControl &, base::GoalRegion const*, SpaceInformationPtr)>;
             using PropagateWhileValidFn = std::function<bool(base::State * , Control const * , base::State * ,
                                                              PathControl & , SpaceInformationPtr const)>;
             using DebugSampledPathFn = std::function<void(PathControl, float)>;
             using IterEndCallback = std::function<void(arma::gmm_full const &, double, unsigned int, long)>;
 
+            tools::MetricsCallback on_metrics_fn_;
             ParametersConverter parameters_converter_;
             ParametersInitializer parameters_initializer_;
             DebugSampledPathFn debug_sampled_path_fn_;

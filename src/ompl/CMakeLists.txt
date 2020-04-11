@@ -56,6 +56,7 @@ target_include_directories(ompl PUBLIC ${ARMADILLO_INCLUDE_DIRS})
 target_link_libraries(ompl
     ${OMPL_LINK_LIBRARIES}
     Eigen3::Eigen
+    armadillo
     ${ARMADILLO_LIBRARIES}
     ${Boost_DATE_TIME_LIBRARY}
     ${Boost_THREAD_LIBRARY}

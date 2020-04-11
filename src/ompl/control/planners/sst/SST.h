@@ -37,6 +37,7 @@
 #ifndef OMPL_CONTROL_PLANNERS_SST_SST_
 #define OMPL_CONTROL_PLANNERS_SST_SST_
 
+#include <ompl/tools/benchmark/Benchmark.h>
 #include "ompl/control/planners/PlannerIncludes.h"
 #include "ompl/datastructures/NearestNeighbors.h"
 
@@ -58,7 +59,12 @@ namespace ompl
         */
         class SST : public base::Planner
         {
-        public:
+          public:
+            using DebugSampledPathFn = std::function<void(PathControl, float)>;
+
+            tools::MetricsCallback on_metrics_fn_;
+            DebugSampledPathFn debug_sampled_path_fn_;
+
             /** \brief Constructor */
             SST(const SpaceInformationPtr &si);
 
@@ -135,7 +141,7 @@ namespace ompl
             }
 
             /** \brief Set a different nearest neighbors datastructure */
-            template <template <typename T> class NN>
+            template<template<typename T> class NN>
             void setNearestNeighbors()
             {
                 if (nn_ && nn_->size() != 0)
@@ -146,19 +152,19 @@ namespace ompl
                 setup();
             }
 
-        protected:
+          protected:
             /** \brief Representation of a motion
 
                 This only contains pointers to parent motions as we
                 only need to go backwards in the tree. */
             class Motion
             {
-            public:
+              public:
                 Motion() = default;
 
                 /** \brief Constructor that allocates memory for the state and the control */
                 Motion(const SpaceInformation *si)
-                  : state_(si->allocState()), control_(si->allocControl())
+                        : state_(si->allocState()), control_(si->allocControl())
                 {
                 }
 
@@ -168,6 +174,7 @@ namespace ompl
                 {
                     return state_;
                 }
+
                 virtual Motion *getParent() const
                 {
                     return parent_;
@@ -196,16 +203,18 @@ namespace ompl
 
             class Witness : public Motion
             {
-            public:
+              public:
                 Witness() = default;
 
                 Witness(const SpaceInformation *si) : Motion(si)
                 {
                 }
+
                 base::State *getState() const override
                 {
                     return rep_->state_;
                 }
+
                 Motion *getParent() const override
                 {
                     return rep_->parent_;
@@ -273,6 +282,9 @@ namespace ompl
 
             /** \brief The optimization objective. */
             base::OptimizationObjectivePtr opt_;
+
+          public:
+            PathCostFn cost_fn_;
         };
     }
 }

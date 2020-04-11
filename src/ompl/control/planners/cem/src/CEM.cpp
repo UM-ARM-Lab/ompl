@@ -1,4 +1,5 @@
 #include <limits>
+#include <ompl/base/Cost.h>
 
 #include "ompl/base/Planner.h"
 #include "ompl/base/objectives/PathLengthOptimizationObjective.h"
@@ -39,6 +40,7 @@ void ompl::control::CEM::setup()
 
 ompl::base::PlannerStatus ompl::control::CEM::solve(const base::PlannerTerminationCondition &ptc)
 {
+    auto const start_time = std::chrono::high_resolution_clock::now().time_since_epoch();
     checkValidity();
 
     auto const real_control_space = siC_->getControlSpace()->as<RealVectorControlSpace>();
@@ -80,7 +82,6 @@ ompl::base::PlannerStatus ompl::control::CEM::solve(const base::PlannerTerminati
     double best_cost{std::numeric_limits<double>::max()};
     for (auto iter{0u}; iter < iterations_; ++iter)
     {
-        auto const iter_start = std::chrono::high_resolution_clock::now().time_since_epoch();
         if (ptc)
         {
             OMPL_INFORM("Exiting based on termination criterion");
@@ -107,6 +108,7 @@ ompl::base::PlannerStatus ompl::control::CEM::solve(const base::PlannerTerminati
             auto *final_state = si_->allocState();
             auto *state = si_->allocState();
             si_->copyState(state, start);
+            base::Cost accumulated_cost{0};
             for (auto t{0u}; t < controls_z_j.size(); ++t)
             {
                 auto const control = controls_z_j[t];
@@ -124,6 +126,9 @@ ompl::base::PlannerStatus ompl::control::CEM::solve(const base::PlannerTerminati
                     break;
                 }
 
+                auto const motion_cost = opt_->motionCost(state, final_state);
+                opt_->combineCosts(accumulated_cost, motion_cost);
+
                 siC_->copyState(state, final_state);
             }
             si_->freeState(state);
@@ -134,7 +139,7 @@ ompl::base::PlannerStatus ompl::control::CEM::solve(const base::PlannerTerminati
             }
 
             si_->freeState(final_state);
-            auto const path_cost = cost_fn_(path, goal, siC_);
+            auto const path_cost = cost_fn_(path, goal, siC_.get());
 
             debug_sampled_path_fn_(path, path_cost);
 
@@ -182,7 +187,7 @@ ompl::base::PlannerStatus ompl::control::CEM::solve(const base::PlannerTerminati
         }
 
         best_path = std::make_shared<ompl::control::PathControl>(paths.at(sorted_indices(0)));
-        best_cost = costs(sorted_indices(0));
+        auto const new_lowest_cost = costs(sorted_indices(0));
 
         // add noise to the covariances, as the paper suggests. To reduce local minima
         auto fcovs = arma::cube(gmm_model.fcovs.begin(), params_dim, params_dim, n_mixture_components_);
@@ -198,9 +203,29 @@ ompl::base::PlannerStatus ompl::control::CEM::solve(const base::PlannerTerminati
         }
 
         auto const now = std::chrono::high_resolution_clock::now().time_since_epoch();
-        auto const iter_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(iter_start - now).count();
+        auto const time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count();
 
-        on_iter_end_fn_(gmm_model, best_cost, iter, iter_time_ms);
+        on_iter_end_fn_(gmm_model, new_lowest_cost, iter, time_ms);
+
+        if (new_lowest_cost < best_cost)
+        {
+            best_cost = new_lowest_cost;
+            OMPL_INFORM("new best cost %f at time %6d", best_cost, time_ms);
+            tools::Metrics other_metrics;
+            tools::Metric means_metric{};
+            means_metric.dims.emplace_back(gmm_model.means.size());
+            means_metric.value = arma::conv_to<std::vector<double>>::from(gmm_model.means);
+            means_metric.name = "mean";
+            tools::Metric fcovs_metric{};
+            fcovs_metric.dims.emplace_back(gmm_model.fcovs.n_slices);
+            fcovs_metric.dims.emplace_back(gmm_model.fcovs.n_rows);
+            fcovs_metric.dims.emplace_back(gmm_model.fcovs.n_cols);
+            fcovs_metric.value = arma::conv_to<std::vector<double>>::from(arma::vectorise(gmm_model.fcovs));
+            fcovs_metric.name = "fcovs";
+            other_metrics.push_back(means_metric);
+            other_metrics.push_back(fcovs_metric);
+            on_metrics_fn_(time_ms, best_cost, other_metrics);
+        }
     }
 
     base::PlannerSolution psol(best_path);

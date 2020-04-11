@@ -39,6 +39,7 @@
 
 #include "ompl/control/SpaceInformation.h"
 #include "ompl/base/Path.h"
+#include "ompl/base/goals/GoalRegion.h"
 #include "ompl/geometric/PathGeometric.h"
 #include <vector>
 
@@ -59,7 +60,7 @@ namespace ompl
          differential constraints. */
         class PathControl : public base::Path
         {
-        public:
+          public:
             /** \brief Constructor */
             PathControl(const base::SpaceInformationPtr &si);
 
@@ -85,6 +86,7 @@ namespace ompl
 
             /** \brief Print the path to a stream */
             void print(std::ostream &out) const override;
+
             /** \brief Print the path as a real-valued matrix where the
                 i-th row represents the i-th state along the path, followed
                 by the control and duration needed to reach this state. For
@@ -199,7 +201,7 @@ namespace ompl
 
             /** @} */
 
-        protected:
+          protected:
             /** \brief The list of states that make up the path */
             std::vector<base::State *> states_;
 
@@ -217,6 +219,10 @@ namespace ompl
             /** \brief Copy the content of a path to this one */
             void copyFrom(const PathControl &other);
         };
+
+        using PathCostFn = std::function<double(const PathControl &,
+                                                base::GoalRegion const *,
+                                                SpaceInformation const *)>;
     }
 }
 
