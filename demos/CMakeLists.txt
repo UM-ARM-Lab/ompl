@@ -1,9 +1,9 @@
 option(OMPL_BUILD_DEMOS "Build OMPL demos" ON)
 add_feature_info(OMPL_BUILD_DEMOS "${OMPL_BUILD_DEMOS}" "Whether to build the OMPL demo programs.")
 
-find_package(Python3 COMPONENTS Development)
-
 if (OMPL_BUILD_DEMOS)
+    find_package(Python3 COMPONENTS Development)
+
     file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/tests/resources" TEST_RESOURCES_DIR)
     string(REPLACE "\\" "\\\\" TEST_RESOURCES_DIR "${TEST_RESOURCES_DIR}")
     add_definitions(-DTEST_RESOURCES_DIR=\"${TEST_RESOURCES_DIR}\")
