@@ -39,6 +39,7 @@
 
 #include "ompl/base/State.h"
 #include "ompl/control/Control.h"
+#include "ompl/control/MyMotion.h"
 #include "ompl/util/ClassForward.h"
 
 namespace ompl
@@ -91,6 +92,31 @@ namespace ompl
             */
             virtual void propagate(const base::State *state, const Control *control, double duration,
                                    base::State *result) const = 0;
+
+            /** \brief Propagate from a state, given a control, for some specified amount of time (the amount of time
+               can also be negative, if canPropagateBackward() returns true) but with access to the entire path from the
+               root of the tree
+                \param motions a vector of Motions. the state in the first motion is the root of the tree, and the state
+                in the last motion is a the node we want to extend from. The first action is null, and the last action
+                is the action that brought us to the last state.
+                \param control the control to apply
+                \param duration the duration for which the control is applied
+                \param result the state the system is brought to
+
+                \note This function is <b>not used for integration</b>
+                internally. If integrating a system of differential
+                equations is needed, this should be implemented inside
+                the propagate() function.
+
+                \note The pointer to the starting state and the result
+                state may be the same.
+            */
+            virtual void propagate(MyMotions motions, const Control *control, double duration,
+                                   base::State *result) const
+            {
+                auto *state = motions.back()->getState();
+                propagate(state, control, duration, result);
+            }
 
             /** \brief Some systems can only propagate forward in time (i.e., the \e duration argument for the
                propagate()

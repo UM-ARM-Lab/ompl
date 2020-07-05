@@ -4,6 +4,7 @@ src/ompl/control/DirectedControlSampler.h
 src/ompl/control/SimpleDirectedControlSampler.h
 src/ompl/control/ControlSpaceTypes.h
 src/ompl/control/ControlSpace.h
+src/ompl/control/MyMotion.h
 src/ompl/control/StatePropagator.h
 src/ompl/control/SpaceInformation.h
 src/ompl/control/ODESolver.h
@@ -25,6 +26,5 @@ src/ompl/control/planners/syclop/SyclopRRT.h
 src/ompl/control/planners/sst/SST.h
 src/ompl/control/planners/cem/CEM.h
 src/ompl/control/planners/best_first_rrt/BestFirstRRT.h
-src/ompl/control/MyMotion.h
 src/ompl/control/MotionsValidityChecker.h
 py-bindings/ompl_py_control.h
