@@ -126,7 +126,7 @@ ompl::base::PlannerStatus ompl::control::RRT::solve(const base::PlannerTerminati
     Control *rctrl = rmotion->control;
     base::State *xstate = si_->allocState();
 
-    while (ptc == false)
+    while (tptc == false)
     {
         /* sample random state (with goal biasing) */
         if (goal_s && rng_.uniform01() < goalBias_ && goal_s->canSample())

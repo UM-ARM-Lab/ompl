@@ -124,7 +124,7 @@ void ompl::control::SpaceInformation::setStatePropagator(const StatePropagatorFn
 {
     class FnStatePropagator : public StatePropagator
     {
-        public:
+    public:
         FnStatePropagator(SpaceInformation *si, StatePropagatorFn fn) : StatePropagator(si), fn_(std::move(fn))
         {
         }
@@ -135,8 +135,43 @@ void ompl::control::SpaceInformation::setStatePropagator(const StatePropagatorFn
             fn_(state, control, duration, result);
         }
 
-        protected:
+        void propagate(const MyMotions motions, const Control *control, const double duration,
+                       base::State *result) const override
+        {
+            auto *state = motions.back()->getState();
+            fn_(state, control, duration, result);
+        }
+
+    protected:
         StatePropagatorFn fn_;
+    };
+
+    setStatePropagator(std::make_shared<FnStatePropagator>(this, fn));
+}
+
+void ompl::control::SpaceInformation::setStatePropagator(const AdvancedStatePropagatorFn &fn)
+{
+    class FnStatePropagator : public StatePropagator
+    {
+        public:
+        FnStatePropagator(SpaceInformation *si, AdvancedStatePropagatorFn fn) : StatePropagator(si), fn_(std::move(fn))
+        {
+        }
+
+        void propagate(const base::State *state, const Control *control, const double duration,
+                       base::State *result) const override
+        {
+            throw std::logic_error("not implemented.");
+        }
+
+        void propagate(const MyMotions motions, const Control *control, const double duration,
+                       base::State *result) const override
+        {
+            fn_(motions, control, duration, result);
+        }
+
+        protected:
+        AdvancedStatePropagatorFn fn_;
     };
 
     setStatePropagator(std::make_shared<FnStatePropagator>(this, fn));
@@ -325,7 +360,7 @@ ompl::control::MyMotions ompl::control::SpaceInformation::propagateWhileMotionsV
         // this might be fine?
         auto *new_motion = new MyMotion(this);
         new_motion->parent = motion;
-        statePropagator_->propagate(current_state, control, stepSize_, new_motion->state);
+        statePropagator_->propagate(all_motions, control, stepSize_, new_motion->state);
         copyControl(new_motion->control, control);
 
         // If the new state is invalid, but motions is valid (so far) then return the motions so far

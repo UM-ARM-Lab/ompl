@@ -544,6 +544,10 @@ class ompl_control_generator_t(code_generator_t):
             'void(const ompl::base::State*, const ompl::control::Control*, const double, '
             'ompl::base::State*)',
             'StatePropagatorFn', 'State propagator function')
+        self.add_function_wrapper(
+            'void(const ompl::control::MyMotions, const ompl::control::Control*, const double, '
+            'ompl::base::State*)',
+            'AdvancedStatePropagatorFn', 'Advanced State propagator function')
         self.add_function_wrapper('double(int, int)', 'EdgeCostFactorFn', \
             'Syclop edge cost factor function')
         self.add_function_wrapper('void(int, int, std::vector<int>&)', 'LeadComputeFn', \

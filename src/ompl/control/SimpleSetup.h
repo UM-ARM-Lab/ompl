@@ -175,6 +175,12 @@ namespace ompl
                 si_->setStatePropagator(sp);
             }
 
+            /** \brief Set the function that performs state propagation */
+            void setStatePropagator(const AdvancedStatePropagatorFn &sp)
+            {
+                si_->setStatePropagator(sp);
+            }
+
             /** \brief Set the instance of StatePropagator to perform state propagation */
             void setStatePropagator(const StatePropagatorPtr &sp)
             {
