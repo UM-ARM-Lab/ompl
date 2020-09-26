@@ -1,6 +1,21 @@
 The Open Motion Planning Library (OMPL)
 =======================================
 
+## NOTE! For building bindings with a python virtualenv
+
+You need to tell catkin/cmake about your virtualenv, which can be done by setting:
+
+  export CMAKE_PREFIX_PATH=/home/peter/catkin_ws/src/venv/:$CMAKE_PREFIX_PATH
+
+Obviously you need to substitute the path of `venv`. The `venv` folder should look like this
+
+```
+$ ls ../../src/venv
+bin  include  lib  pyvenv.cfg  share
+
+```
+
+
 Linux / macOS [![Build Status](https://travis-ci.org/ompl/ompl.svg?branch=master)](https://travis-ci.org/ompl/ompl)
 Windows [![Build status](https://ci.appveyor.com/api/projects/status/valuv9sabye1y35n/branch/master?svg=true)](https://ci.appveyor.com/project/mamoll/ompl/branch/master)
 
