@@ -12,8 +12,14 @@ Obviously you need to substitute the path of `venv`. The `venv` folder should lo
 ```
 $ ls ../../src/venv
 bin  include  lib  pyvenv.cfg  share
-
 ```
+
+## Dependencies on 20.04
+
+On 20.04 it is sufficient to install pyplusplus, pygccxml, and numpy through pip, and install castxml from apt.
+
+
+## Original README
 
 
 Linux / macOS [![Build Status](https://travis-ci.org/ompl/ompl.svg?branch=main)](https://travis-ci.org/ompl/ompl)
