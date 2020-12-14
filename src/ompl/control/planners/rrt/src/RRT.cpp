@@ -126,13 +126,19 @@ ompl::base::PlannerStatus ompl::control::RRT::solve(const base::PlannerTerminati
     Control *rctrl = rmotion->control;
     base::State *xstate = si_->allocState();
 
+    auto first_iter = true;
     while (ptc == false)
     {
         /* sample random state (with goal biasing) */
-        if (goal_s && rng_.uniform01() < goalBias_ && goal_s->canSample())
+        if (goal_s && goal_s->canSample() && (rng_.uniform01() < goalBias_ || first_iter))
+        {
             goal_s->sampleGoal(rstate);
+            first_iter = false;
+        }
         else
+        {
             sampler_->sampleUniform(rstate);
+        }
 
         /* find closest state in the tree */
         MyMotion *nmotion = nn_->nearest(rmotion);
