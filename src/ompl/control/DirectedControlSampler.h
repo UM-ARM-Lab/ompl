@@ -94,6 +94,17 @@ namespace ompl
             virtual unsigned int sampleTo(Control *control, const Control *previous, const base::State *source,
                                           base::State *dest) = 0;
 
+            virtual unsigned int sampleToBatch(std::vector<Control *> controls, const Control *previous,
+                                               const base::State *source, base::State *dest)
+            {
+                unsigned int duration{0};
+                for (auto const control : controls)
+                {
+                    duration =  sampleTo(control, previous, source, dest);
+                }
+                return duration;
+            }
+
         protected:
             /** \brief The space information this sampler operates on */
             const SpaceInformation *si_;

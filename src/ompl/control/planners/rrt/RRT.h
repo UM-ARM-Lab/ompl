@@ -111,6 +111,17 @@ namespace ompl
                 addIntermediateStates_ = addIntermediateStates;
             }
 
+            bool getBatchSize() const
+            {
+                return batchSize_;
+            }
+
+            void setBatchSize(bool batchSize)
+            {
+                batchSize_ = batchSize;
+            }
+
+
             void getPlannerData(base::PlannerData &data) const override;
 
             /** \brief Set a different nearest neighbors datastructure */
@@ -155,6 +166,8 @@ namespace ompl
 
             /** \brief Flag indicating whether intermediate states are added to the built tree of motions */
             bool addIntermediateStates_{false};
+
+            int batchSize_;
 
             /** \brief The random number generator */
             RNG rng_;

@@ -46,6 +46,7 @@ ompl::control::RRT::RRT(const SpaceInformationPtr &si) : base::Planner(si, "RRT"
 
     Planner::declareParam<double>("goal_bias", this, &RRT::setGoalBias, &RRT::getGoalBias, "0.:.05:1.");
     Planner::declareParam<bool>("intermediate_states", this, &RRT::setIntermediateStates, &RRT::getIntermediateStates, "0,1");
+    Planner::declareParam<int>("batch_size", this, &RRT::setBatchSize, &RRT::getBatchSize, "1-1024");
     rng_.setLocalSeed(0);
 }
 
@@ -121,10 +122,17 @@ ompl::base::PlannerStatus ompl::control::RRT::solve(const base::PlannerTerminati
     MyMotion *approxsol = nullptr;
     double approxdif = std::numeric_limits<double>::infinity();
 
-    auto *rmotion = new MyMotion(siC_);
-    base::State *rstate = rmotion->state;
-    Control *rctrl = rmotion->control;
-    base::State *xstate = si_->allocState();
+    // allocate new random controls once and reuse
+    std::vector<MyMotion *> random_motions;
+    std::vector<Control *> random_controls;
+    std::vector<base::State *> random_states;
+    for (auto b = 0; b < batchSize_; ++b)
+    {
+        auto *rmotion = new MyMotion(siC_);
+        random_motions.push_back(rmotion);
+        random_states.push_back(rmotion->state);
+        random_controls.push_back(rmotion->control);
+    }
 
     auto first_iter = true;
     while (ptc == false)
@@ -150,14 +158,18 @@ ompl::base::PlannerStatus ompl::control::RRT::solve(const base::PlannerTerminati
         ompl::base::PlannerDataSample sample_data(saved_rstate, saved_nstate);
         samples_.push_back(sample_data);
 
-        /* sample a random control that attempts to go towards the random state, and also sample a control duration */
-        auto const steps = controlSampler_->sampleTo(rctrl, nmotion->control, nmotion->state, rmotion->state);
+        /* sample a random control that attempts to go tow/rds the random state, and also sample a control duration */
+        auto const steps = controlSampler_->sampleToBatch(random_controls,
+                                                          nmotion->control,
+                                                          nmotion->state,
+                                                          rstate,
+                                                          batchSize_);
 
         if (addIntermediateStates_)
         {
             // what is parent here?
             // nmotion->state is where we want to extend from
-            auto const motions = siC_->propagateWhileMotionsValid(nmotion, rctrl, steps);
+            auto const motions = siC_->propagateWhileMotionsValid(nmotion, random_controls, steps);
 
             if (steps >= siC_->getMinControlDuration())
             {
@@ -236,12 +248,15 @@ ompl::base::PlannerStatus ompl::control::RRT::solve(const base::PlannerTerminati
         pdef_->addSolutionPath(path, approximate, approxdif, getName());
     }
 
-    if (rmotion->state)
-        si_->freeState(rmotion->state);
-    if (rmotion->control)
-        siC_->freeControl(rmotion->control);
-    delete rmotion;
-    si_->freeState(xstate);
+    for (auto b = 0; b < batchSize_; ++b)
+    {
+        auto *rmotion = random_motions[b];
+        if (rmotion->state)
+            si_->freeState(rmotion->state);
+        if (rmotion->control)
+            siC_->freeControl(rmotion->control);
+        delete rmotion;
+    }
 
     OMPL_INFORM("%s: Created %u states", getName().c_str(), nn_->size());
 
